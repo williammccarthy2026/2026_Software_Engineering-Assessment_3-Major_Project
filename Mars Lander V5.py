@@ -285,7 +285,7 @@ def level_1():
 
 # ────────────────────────────────────────────────
 #  MAIN MENU LOOP
-# ───────────────────────────────────────────────
+# ────────────────────────────────────────────────
 def main_menu():
     running = True
     while running:
@@ -317,4 +317,4 @@ def main_menu():
         clock.tick(60)
 
 # ─── Start the game ───
-main_menu(
+main_menu()
