@@ -15,6 +15,7 @@ clock = pygame.time.Clock()             # Clock to control frame rate
 # ────────────────────────────────────────────────
 #  COLOUR DEFINITIONS (RGB tuples)
 # ────────────────────────────────────────────────
+#piuahwpiudhsapiuhds
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY  = (200, 200, 200)
