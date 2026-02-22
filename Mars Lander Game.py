@@ -48,48 +48,47 @@ class Lander:
         self.base_image = pygame.image.load("lander.png").convert_alpha() # Loads lander image
         self.booster_image = pygame.image.load("lander_(boosterv1).png").convert_alpha() # Loads booster image
 
-
-        self.image = self.base_image # Current lander image variable
+        self.image = self.base_image
         self.rect = self.image.get_rect(center=(self.x, self.y)) # Centers lander image on rectangle for positioning
-        
-        self.image = pygame.image.load("lander.png").convert_alpha()#load your image
-        self.rect = self.image.get_rect()#rectangle for positioning
-        self.rect.centerx = self.x#centre the image horizonta$lly
-        self.rect.centery = self.y#centre the image vertically
 
     def update(self):
         if not self.alive:#stop updating after landing
             return
-            
-        self.speed += GRAVITY#gravity pulls down every frame
+
+        self.speed += GRAVITY # Gravity propels lander down
+
+        keys = pygame.key.get_pressed() # Checks which keys are currently pressed
+
+        thrusting = False #
+
+        if keys[pygame.K_SPACE] and self.fuel > 0: # Checks if space key is pressed and if fuel is left
+            self.speed -= THRUST # Thrust propels lander up
+            self.fuel -= 1 # Removes 1 fuel
+            thrusting = True # 
+
         
-        keys = pygame.key.get_pressed() # check which keys are pressed
-        if keys[pygame.K_SPACE] and self.fuel > 0: # space key + fuel = thrust
-            self.speed -= THRUST # push upwards
-            self.fuel -= 1 # use 1 unit of fuel
-            self.image = pygame.image.load("lander_(boosterv1).png").convert_alpha() # change image to show thrust
+        if keys[pygame.K_LEFT]: # Check for left arrow key press
+            self.angle += 5 # Rotate the lander
+        if keys[pygame.K_RIGHT]:
+            self.angle -= 5
 
-        key = pygame.key.get_pressed() # check keys again to reset image
-        if not key[pygame.K_SPACE]: # if space is not pressed, show normal image
-            self.image = pygame.image.load("lander.png").convert_alpha() # reset to normal image
-            
-        self.y += self.speed#move the lander
-        self.rect.centery = self.y#update image position
+        # Rotate the correct base image depending on thrust
+        if thrusting:
+            rotated = pygame.transform.rotate(self.booster_image, self.angle)
+        else:
+            rotated = pygame.transform.rotate(self.base_image, self.angle)
 
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_ARROW_LEFT]: # check for left key being pressed
-            self.angle += 5 # rotate left
-            
-        if keys[pygame.K_ARROW_RIGHT]: # check for right key being pressed
-            self.angle -= 5 # rotate right
+        # Update image + keep centered
+        self.image = rotated
+        self.rect = self.image.get_rect(center=(self.x, self.y))   # center stays at (x,y)
 
-        self.image = pygame.transform.rotate(self.base_image, self.angle)   # note: angle in degrees, positive = counter-clockwise
-        self.rect = self.image.get_rect(center=self.rect.center)  # keep centered after rotate
-            
-        if self.y > HEIGHT - 100:#hit the ground
-            self.y = HEIGHT - 100#lock to ground level
-            self.rect.centery = self.y#update image
-            self.alive = False#landing complete
+        self.y += self.speed
+        # self.rect.centery = self.y   ← no longer needed, center= handles it
+
+        if self.y > HEIGHT - 100:
+            self.y = HEIGHT - 100
+            self.rect.center = (self.x, self.y)   # better: update full center
+            self.alive = False
 
     def draw(self):
         screen.blit(self.image, self.rect)#draw the spaceship image
