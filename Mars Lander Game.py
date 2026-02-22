@@ -3,13 +3,17 @@ import sys
 import random
 from math import sin, cos, radians
 
+# start pygame
 pygame.init()
-screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
-w = screen.get_width()
-h = screen.get_height()
+
+# fixed window size (not fullscreen anymore)
+WINDOW_W = 1000
+WINDOW_H = 700
+screen = pygame.display.set_mode((WINDOW_W, WINDOW_H))
 pygame.display.set_caption("Mars Lander")
 clock = pygame.time.Clock()
 
+# colours
 WHITE = (255,255,255)
 BLACK = (0,0,0)
 GRAY = (200,200,200)
@@ -20,16 +24,16 @@ GREEN = (0,255,0)
 RED = (255,0,0)
 LOCKED = (100,100,100)
 
+# game values (use fractions of window size)
 GRAVITY = 0.04
 THRUST = 0.20
 ROTATE_SPEED = 1.0
 SAFE_Y = 3
 SAFE_X = 2
 SAFE_ANGLE = 10
-GROUND_Y = h - 80
+GROUND_Y = WINDOW_H - 80
 BOOST_TIME = 30
 BOOM_SPEED = 12
-START_FUEL = 1000
 
 class Button:
     def __init__(self, txt, x, y, ww, hh):
@@ -39,47 +43,44 @@ class Button:
 
     def draw(self):
         pygame.draw.rect(screen, self.col, self.box)
-        f = pygame.font.SysFont(None, 50)
+        f = pygame.font.SysFont(None, 40)
         t = f.render(self.txt, True, BLACK)
         screen.blit(t, t.get_rect(center=self.box.center))
 
     def mouse_on(self):
         return self.box.collidepoint(pygame.mouse.get_pos())
 
-# buttons
-start_b = Button("Start", w//2-150, h//3, 300, 60)
-levels_b = Button("Level Select", w//2-150, h//3+80, 300, 60)
-exit_b = Button("Exit", w//2-150, h//3+160, 300, 60)
+# menu buttons (centered in window)
+start_b = Button("Start", WINDOW_W//2-150, WINDOW_H//3, 300, 60)
+levels_b = Button("Level Select", WINDOW_W//2-150, WINDOW_H//3+80, 300, 60)
+exit_b = Button("Exit", WINDOW_W//2-150, WINDOW_H//3+160, 300, 60)
 
 class Lander:
-    def __init__(self):
-        self.x = w // 2
-        self.y = h // 10
+    def __init__(self, fuel_start):
+        self.x = WINDOW_W // 2
+        self.y = WINDOW_H // 10
         self.vx = 0
         self.vy = 0
         self.ang = 0
         self.fire = False
         self.timer = 0
-        self.which_boost = 0
+        self.boost_num = 0
         self.ok = True
         self.win = False
         self.boom = False
         self.onpad = False
-        self.fuel = START_FUEL
+        self.fuel = fuel_start
 
         self.norm = pygame.image.load('lander.png').convert_alpha()
         self.boosts = []
-        self.boosts.append(pygame.image.load('lander_(boosterv1).png').convert_alpha())
-        self.boosts.append(pygame.image.load('lander_(boosterv2).png').convert_alpha())
-        self.boosts.append(pygame.image.load('lander_(boosterv3).png').convert_alpha())
+        for i in range(1,4):
+            self.boosts.append(pygame.image.load(f'lander_(boosterv{i}).png').convert_alpha())
         self.leftb = pygame.image.load('lander_(boosterL).png').convert_alpha()
         self.rightb = pygame.image.load('lander_(boosterR).png').convert_alpha()
 
         self.booms = []
-        self.booms.append(pygame.image.load('Explosion1.png').convert_alpha())
-        self.booms.append(pygame.image.load('Explosion2.png').convert_alpha())
-        self.booms.append(pygame.image.load('Explosion3.png').convert_alpha())
-        self.booms.append(pygame.image.load('Explosion4.png').convert_alpha())
+        for i in range(1,5):
+            self.booms.append(pygame.image.load(f'Explosion{i}.png').convert_alpha())
 
         self.halfw = self.norm.get_width() // 2
         self.halfh = self.norm.get_height() // 2
@@ -89,44 +90,52 @@ class Lander:
         self.booming = False
         self.boomend = False
 
+        # smoke
+        self.smoke = []
+
     def go(self, g, terr=None, k=None):
         if not self.ok:
             if self.boom and self.booming:
-                self.bt = self.bt + 1
+                self.bt += 1
                 if self.bt >= BOOM_SPEED:
                     self.bt = 0
-                    self.bf = self.bf + 1
+                    self.bf += 1
                     if self.bf >= 4:
                         self.booming = False
                         self.boomend = True
             return
 
-        self.vy = self.vy + GRAVITY
+        self.vy += GRAVITY
 
         self.fire = k[pygame.K_SPACE]
         left = k[pygame.K_LEFT]
         right = k[pygame.K_RIGHT]
 
         if left:
-            self.ang = self.ang - ROTATE_SPEED
+            self.ang -= ROTATE_SPEED
         if right:
-            self.ang = self.ang + ROTATE_SPEED
+            self.ang += ROTATE_SPEED
 
         if self.fire and self.fuel > 0:
             r = radians(self.ang)
-            self.vx = self.vx + THRUST * sin(r)
-            self.vy = self.vy - THRUST * cos(r)
-            self.fuel = self.fuel - 1   # lose fuel when thrusting
-
+            self.vx += THRUST * sin(r)
+            self.vy -= THRUST * cos(r)
+            self.fuel -= 1
             if self.timer <= 0:
-                self.which_boost = random.randint(0,2)
+                self.boost_num = random.randint(0,2)
                 self.timer = BOOST_TIME
-            self.timer = self.timer - 1
-        else:
-            self.fire = False   # no thrust if no fuel
+            self.timer -= 1
 
-        self.x = self.x + self.vx
-        self.y = self.y + self.vy
+            # smoke behind
+            sx = self.x - 15 * sin(radians(self.ang))
+            sy = self.y + 15 * cos(radians(self.ang))
+            self.smoke.append([sx, sy, 30])
+
+        else:
+            self.fire = False
+
+        self.x += self.vx
+        self.y += self.vy
 
         if self.x < self.halfw:
             self.x = self.halfw
@@ -135,7 +144,13 @@ class Lander:
             self.x = w - self.halfw
             self.vx = 0
 
-        if terr != None:
+        # smoke fade
+        for p in self.smoke[:]:
+            p[2] -= 1
+            if p[2] <= 0:
+                self.smoke.remove(p)
+
+        if terr is not None:
             for i in range(len(terr)-1):
                 x1,y1 = terr[i]
                 x2,y2 = terr[i+1]
@@ -177,7 +192,7 @@ class Lander:
             n = min(self.bf, 3)
             return self.booms[n]
         if self.fire:
-            return self.boosts[self.which_boost]
+            return self.boosts[self.boost_num]
         if k[pygame.K_LEFT]:
             return self.leftb
         if k[pygame.K_RIGHT]:
@@ -189,6 +204,12 @@ class Lander:
         r = pygame.transform.rotate(p, -self.ang)
         rr = r.get_rect(center=(self.x, self.y))
         screen.blit(r, rr)
+
+        # draw smoke
+        for p in self.smoke:
+            a = int(255 * (p[2] / 30))
+            col = (200, 200, 200, a)
+            pygame.draw.circle(screen, col, (int(p[0]), int(p[1])), 4)
 
     def draw_fuel(self):
         f = pygame.font.SysFont(None, 40)
@@ -208,21 +229,20 @@ class FlatG:
         pygame.draw.rect(screen, (150,150,150), self.pad_rect)
 
 class HillG:
-    def __init__(self):
-        self.pad_w = 120
+    def __init__(self, lvl):
+        self.pad_w = 120 - lvl * 10
         self.pad_h = 20
         self.pts = []
         x = 0
         y = GROUND_Y + random.randint(-40,40)
         while x < w:
             self.pts.append((x, y))
-            x = x + random.randint(80,150)
-            y = y + random.randint(-60,60)
+            x += random.randint(60,140)
+            y += random.randint(-80,80)
             if y < h//2: y = h//2
             if y > h-100: y = h-100
         self.pts.append((w, self.pts[-1][1]))
 
-        # make a flat spot for the pad
         spot = random.randint(3, len(self.pts)-5)
         flat_y = (self.pts[spot][1] + self.pts[spot+1][1]) // 2
         self.pts[spot] = (self.pts[spot][0], flat_y)
@@ -247,12 +267,19 @@ def msg(txt, c):
     qm = smf.render("Press Q or ESC to quit", True, WHITE)
     screen.blit(qm, (w//2 - qm.get_width()//2, h//2 + 50))
 
-def play1(unl):
-    g = FlatG()
-    s = Lander()
+def play_level(lvl, unl):
+    if lvl == 1:
+        g = FlatG()
+        fuel = 1000
+    else:
+        g = HillG(lvl)
+        fuel = 1000 - (lvl-1)*200
+
+    s = Lander(fuel)
 
     play = True
     won = False
+
     while play:
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
@@ -265,7 +292,7 @@ def play1(unl):
                     play = False
 
         kk = pygame.key.get_pressed()
-        s.go(g, None, kk)
+        s.go(g, g.pts if lvl > 1 else None, kk)
         screen.fill(SKY)
         g.draw()
         s.drawpic(kk)
@@ -273,8 +300,10 @@ def play1(unl):
 
         if not s.ok:
             if s.win:
-                msg("Good Landing! Press SPACE for Level 2", GREEN)
-                unl[0] = True
+                txt = "Good! Press SPACE for Level " + str(lvl+1)
+                msg(txt, GREEN)
+                if lvl < 5:
+                    unl[lvl] = True
                 won = True
             else:
                 msg("Crash!", RED)
@@ -287,43 +316,15 @@ def play1(unl):
 
     return unl
 
-def play2():
-    g = HillG()
-    s = Lander()
+def levels_screen(unl):
+    bs = []
+    for i in range(5):
+        txt = "Level " + str(i+1)
+        col = BLUE if (i == 0 or unl[i]) else LOCKED
+        b = Button(txt, w//2-150, h//3 + i*70, 300, 60, col)
+        bs.append(b)
 
-    play = True
-    while play:
-        for ev in pygame.event.get():
-            if ev.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
-            if ev.type == pygame.KEYDOWN:
-                if ev.key == pygame.K_q or ev.key == pygame.K_ESCAPE:
-                    play = False
-
-        kk = pygame.key.get_pressed()
-        s.go(g, g.pts, kk)
-        screen.fill(SKY)
-        g.draw()
-        s.drawpic(kk)
-        s.draw_fuel()
-
-        if not s.ok:
-            if s.win:
-                msg("Good Landing! Level 2 Done", GREEN)
-            else:
-                msg("Crash!", RED)
-            pygame.display.flip()
-            pygame.time.wait(3000)
-            play = False
-
-        pygame.display.flip()
-        clock.tick(60)
-
-def levels(unl):
-    b1 = Button("Level 1", w//2-150, h//3, 300, 60)
-    b2 = Button("Level 2", w//2-150, h//3+80, 300, 60, BLUE if unl[0] else LOCKED)
-    bk = Button("Back", w//2-150, h//3+160, 300, 60)
+    bk = Button("Back", w//2-150, h//3 + 350, 300, 60)
 
     r = True
     while r:
@@ -334,25 +335,24 @@ def levels(unl):
                 pygame.quit()
                 sys.exit()
             if ev.type == pygame.MOUSEBUTTONDOWN:
-                if b1.mouse_on():
-                    play1(unl)
-                if b2.mouse_on() and unl[0]:
-                    play2()
+                for i in range(5):
+                    if bs[i].mouse_on() and (i == 0 or unl[i]):
+                        unl = play_level(i+1, unl)
                 if bk.mouse_on():
                     r = False
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_ESCAPE:
                     r = False
 
-        b1.draw()
-        b2.draw()
+        for b in bs:
+            b.draw()
         bk.draw()
 
         pygame.display.flip()
         clock.tick(60)
 
 def menu():
-    unl = [False]
+    unl = [False] * 5
 
     r = True
     while r:
@@ -364,25 +364,9 @@ def menu():
                 sys.exit()
             if ev.type == pygame.MOUSEBUTTONDOWN:
                 if start_b.mouse_on():
-                    unl = play1(unl)
-                    if unl[0]:
-                        screen.fill(SKY)  # back to sky, no white flash
-                        msg("Level 1 Done! Press SPACE for Level 2", GREEN)
-                        pygame.display.flip()
-                        ww = True
-                        while ww:
-                            for eev in pygame.event.get():
-                                if eev.type == pygame.QUIT:
-                                    pygame.quit()
-                                    sys.exit()
-                                if eev.type == pygame.KEYDOWN:
-                                    if eev.key == pygame.K_SPACE:
-                                        play2()
-                                        ww = False
-                                    if eev.key == pygame.K_q or eev.key == pygame.K_ESCAPE:
-                                        ww = False
+                    unl = play_level(1, unl)
                 if levels_b.mouse_on():
-                    levels(unl)
+                    levels_screen(unl)
                 if exit_b.mouse_on():
                     pygame.quit()
                     sys.exit()
