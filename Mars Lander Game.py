@@ -8,8 +8,8 @@ import math # import math for rotation and speed calculations
 # ----------------------------------------
 # Constants
 # ----------------------------------------
-WIDTH = 800 # screen width in pixels
-HEIGHT = 600 # screen height in pixels
+WIDTH = 1024 # screen width in pixels
+HEIGHT = 750 # screen height in pixels
 GRAVITY = 0.1 # how fast the lander falls
 THRUST = 0.25 # how strong the space key thrust is
 START_FUEL = 500 # starting amount of fuel
@@ -32,6 +32,10 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT)) # create game window
 pygame.display.set_caption("Mars Lander") # window title
 clock = pygame.time.Clock() # control frame rate
 font = pygame.font.Font(None, 50) # font for on-screen text
+
+# Load background image
+background_image = pygame.image.load("level1_mars-surface.png").convert()
+background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 
 
 # ----------------------------------------
@@ -57,6 +61,8 @@ class Lander:
         # --------------------
         self.base_image = pygame.image.load("lander.png").convert_alpha() # Loads lander image
         self.booster_image = pygame.image.load("lander_(boosterv1).png").convert_alpha() # Loads booster image
+        self.boosterL_image = pygame.image.load("lander_(boosterL).png").convert_alpha() # Loads left booster image
+        self.boosterR_image = pygame.image.load("lander_(boosterR).png").convert_alpha() # Loads right booster image
 
         self.image = self.base_image
         self.rect = self.image.get_rect(center=(self.x, self.y)) # Centers lander image on rectangle for positioning
@@ -84,20 +90,28 @@ class Lander:
         
         if keys[pygame.K_LEFT]: # Check for left arrow key press
             self.angle += 4 # Rotate the Lander
+            self.image = self.boosterL_image
         if keys[pygame.K_RIGHT]:
             self.angle -= 4
+            self.image = self.boosterR_image
     
         self.angle = max(-90, min(90, self.angle)) # limits the turning angle
 
-        # Rotate the correct base image depending on thrust
-        if self.thrusting:
-            rotated = pygame.transform.rotate(self.booster_image, self.angle)
+        # --------------------
+        # Setting the correct lander image
+        # --------------------
+        if keys[pygame.K_LEFT]:
+            image_to_rotate = self.boosterL_image
+        elif keys[pygame.K_RIGHT]:
+            image_to_rotate = self.boosterR_image
+        elif self.thrusting:
+            image_to_rotate = self.booster_image
         else:
-            rotated = pygame.transform.rotate(self.base_image, self.angle)
+            image_to_rotate = self.base_image
 
-        # Update image + keep centered
-        self.image = rotated
-        self.rect = self.image.get_rect(center=(self.x, self.y))   # center stays at (x,y)
+        # Rotate and update image
+        self.image = pygame.transform.rotate(image_to_rotate, self.angle)
+        self.rect = self.image.get_rect(center=(self.x, self.y))
 
         self.y += self.speed_y
         self.x += self.speed_x
@@ -169,10 +183,8 @@ while True:
             pygame.quit()
             sys.exit()
 
-    
     lander.update()#move the lander
-    
-    screen.fill(SKY)#clear screen with sky
+    screen.blit(background_image, (0, 0))#draw background image
     ground.draw()#draw ground
     lander.draw()#draw spaceship
     hud.draw(lander)#draw text and results
