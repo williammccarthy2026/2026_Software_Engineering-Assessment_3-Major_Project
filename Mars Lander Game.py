@@ -1,10 +1,3 @@
-# TO DO
-# - Add sound file
-
-
-
-
-
 # ----------------------------------------
 # Imported Libraries
 # ----------------------------------------
@@ -231,23 +224,23 @@ while running: # Main game loop
     # Event Handling
     # --------------------
     for event in pygame.event.get(): # Check for events
-        if event.type == pygame.QUIT: # Check for quit event
-            running = False
-        
-        if game_state == MENU: # Check for menu events
-            if menu.handle_event(event): # Start the game
-                lander = Lander() # Create lander
-                game_state = PLAYING # Switch to playing state
-        # ----------
-        # Ending Game
-        # ----------
-        elif game_state == ENDED: # Check for end game events
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_r:
-                    lander = Lander() # Restart the game
-                    game_state = PLAYING # Switch to playing state
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_q: # Quit on Q key press
-                running = False
+
+        if event.type == pygame.QUIT:
+            running = False # Exit game if window is closed
+
+        if event.type == pygame.KEYDOWN:
+
+            if event.key == pygame.K_q: 
+                running = False # Quit game if Q is pressed
+
+            if event.key == pygame.K_r:
+                lander = Lander()
+                game_state = PLAYING # Restart game if R is pressed
+
+            if game_state == MENU:
+                if event.key == pygame.K_SPACE:
+                    lander = Lander()
+                    game_state = PLAYING # Start game if space is pressed in menu
 
     # ----------
     # Updating Game
