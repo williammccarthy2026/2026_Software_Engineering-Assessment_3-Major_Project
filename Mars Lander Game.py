@@ -241,41 +241,42 @@ while running: # Main game loop
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_r:
                     lander = Lander() # Restart the game
+                    game_state = PLAYING # Switch to playing state
             if event.type == pygame.KEYDOWN and event.key == pygame.K_q: # Quit on Q key press
                 running = False
 
-        # ----------
-        # Updating Game
-        # ----------
-        if game_state == PLAYING:
-            lander.update() # Update lander position and state
+    # ----------
+    # Updating Game
+    # ----------
+    if game_state == PLAYING:
+        lander.update() # Update lander position and state
 
-            if lander.landed or not lander.alive: # Check for landing/crash
-                game_state = ENDED # Switch to ended state
+        if lander.landed or not lander.alive: # Check for landing/crash
+            game_state = ENDED # Switch to ended state
 
-        # ----------
-        # Drawing Everything
-        # ----------
-        screen.blit(background_image, (0, 0)) # Draw background image
-        ground.draw() # Draw the ground
-        if game_state == MENU:
-            menu.draw() # Draw the menu
+    # ----------
+    # Drawing Everything
+    # ----------
+    screen.blit(background_image, (0, 0)) # Draw background image
+    ground.draw() # Draw the ground
+    if game_state == MENU:
+        menu.draw() # Draw the menu
+    else:
+        lander.draw() # Draw the lander
+        hud.draw(lander) # Draw the HUD
+
+    # ----------
+    # End Game Message
+    # ----------
+    if game_state == ENDED: # Show end game message
+        if lander.landed:
+            msg = font.render("SAFE LANDING!", True, GREEN) # Show safe landing message
+            screen.blit(msg, (WIDTH//2 - 180, HEIGHT//2 - 50)) # Center message
         else:
-            lander.draw() # Draw the lander
-            hud.draw(lander) # Draw the HUD
-
-        # ----------
-        # End Game Message
-        # ----------
-        if game_state == ENDED: # Show end game message
-            if lander.landed:
-                msg = font.render("SAFE LANDING!", True, GREEN) # Show safe landing message
-                screen.blit(msg, (WIDTH//2 - 180, HEIGHT//2 - 50)) # Center message
-            else:
-                msg = font.render("CRASHED!", True, RED) # Show crash message
-            screen.blit(msg, (WIDTH//2 - 180, HEIGHT//2 - 50))
-            quit_msg = font.render("Press Q to quit", True, WHITE) # Show quit message
-            screen.blit(quit_msg, (WIDTH//2 - 150, HEIGHT//2 + 20))
+            msg = font.render("CRASHED!", True, RED) # Show crash message
+        screen.blit(msg, (WIDTH//2 - 180, HEIGHT//2 - 50))
+        quit_msg = font.render("Press Q to quit", True, WHITE) # Show quit message
+        screen.blit(quit_msg, (WIDTH//2 - 150, HEIGHT//2 + 20))
 
     clock.tick(60) # Limit to 60 frames per second
     pygame.display.flip() # Update the display
