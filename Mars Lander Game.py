@@ -238,6 +238,9 @@ while running: # Main game loop
         # Ending Game
         # ----------
         elif game_state == ENDED: # Check for end game events
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    lander = Lander() # Restart the game
             if event.type == pygame.KEYDOWN and event.key == pygame.K_q: # Quit on Q key press
                 running = False
 
@@ -274,7 +277,8 @@ while running: # Main game loop
             quit_msg = font.render("Press Q to quit", True, WHITE) # Show quit message
             screen.blit(quit_msg, (WIDTH//2 - 150, HEIGHT//2 + 20))
 
-    pygame.display.flip() # Update the display
     clock.tick(60) # Limit to 60 frames per second
+    pygame.display.flip() # Update the display
+
 pygame.quit() # Quit pygame
 sys.exit() # Quit the game
