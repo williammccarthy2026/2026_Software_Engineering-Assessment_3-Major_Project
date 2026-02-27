@@ -1,3 +1,10 @@
+# TO DO
+# - Add sound file
+
+
+
+
+
 # ----------------------------------------
 # Imported Libraries
 # ----------------------------------------
@@ -28,6 +35,7 @@ RED = (255, 0, 0)
 # Pygame Setup
 # ----------------------------------------
 pygame.init() # start pygame
+pygame.mixer.init() # initialize pygame mixer
 screen = pygame.display.set_mode((WIDTH, HEIGHT)) # create game window
 pygame.display.set_caption("Mars Lander") # window title
 clock = pygame.time.Clock() # control frame rate
@@ -37,6 +45,8 @@ font = pygame.font.Font(None, 50) # font for on-screen text
 background_image = pygame.image.load("level1_mars-surface.png").convert()
 background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 
+# Load Sound Effects
+thrust_sound = pygame.mixer.Sound(".")
 
 # ----------------------------------------
 # Lander Class
@@ -86,6 +96,7 @@ class Lander:
             self.speed_y -= math.cos(rad) * THRUST # Adjust vertical speed based on angle
             self.fuel -= 1 # Removes 1 fuel
             self.thrusting = True 
+            thrust_sound.play() # Play thrust sound effect
 
         
         if keys[pygame.K_LEFT]: # Check for left arrow key press
