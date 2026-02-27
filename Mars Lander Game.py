@@ -13,6 +13,13 @@ import sys # import sys for exiting the program
 import math # import math for rotation and speed calculations
 
 # ----------------------------------------
+# Game States
+# ----------------------------------------
+MENU = 'MENU'
+PLAYING = 'PLAYING'
+ENDED = 'ENDED'
+
+# ----------------------------------------
 # Constants
 # ----------------------------------------
 WIDTH = 1024 # screen width in pixels
@@ -47,6 +54,23 @@ background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 
 # Load Sound Effects
 thrust_sound = pygame.mixer.Sound(".")
+
+# ----------------------------------------
+# Menu Class
+# ----------------------------------------
+class Menu:
+    def draw(self):
+        screen.blit(background_image, (0, 0)) # Add background image
+        title = font.render("Mars Lander", True, WHITE) # Draw title
+        instructions = font.render("Press SPACE to start", True, WHITE) # instructions
+        screen.blit(title, (WIDTH//2 - title.get_width()//2, HEIGHT//2 - 100)) # draw title
+        screen.blit(instructions, (WIDTH//2 - instructions.get_width()//2, HEIGHT//2 + 20)) # draw instructions
+
+    def handle_event(self, event):
+            if event.type == pygame.KEYDOWN: # Detects key press
+                if event.key == pygame.K_SPACE: # Checks if space key pressed
+                    return True # Starts the game
+            return False
 
 # ----------------------------------------
 # Lander Class
@@ -90,6 +114,9 @@ class Lander:
 
         keys = pygame.key.get_pressed() # Checks which keys are currently pressed
 
+        # ----------
+        # Controls
+        # ----------
         if keys[pygame.K_SPACE] and self.fuel > 0: # Checks if space key is pressed and if fuel is left
             rad = math.radians(self.angle)
             self.speed_x -= math.sin(rad) * THRUST # Adjust horizontal speed based on angle
@@ -108,9 +135,9 @@ class Lander:
     
         self.angle = max(-90, min(90, self.angle)) # limits the turning angle
 
-        # --------------------
-        # Setting the correct lander image
-        # --------------------
+        # ----------
+        # Setting Lander Image
+        # ----------
         if keys[pygame.K_LEFT]:
             image_to_rotate = self.boosterL_image
         elif keys[pygame.K_RIGHT]:
@@ -156,18 +183,18 @@ class Ground:
 # ----------------------------------------
 class HUD:
     def draw(self, lander):
-        altitude = HEIGHT - 100 - lander.y#distance above ground
+        altitude = HEIGHT - 100 - lander.y # distance above ground
         
-        texts = [#information to show
+        texts = [ # information to show
             f"Altitude: {int(altitude)}",
             f"Vertical Speed: {lander.speed_y:.1f}",
         ]
         
-        for i, text in enumerate(texts):#display each line
+        for i, text in enumerate(texts): # display each line
             msg = font.render(text, True, WHITE)
             screen.blit(msg, (20, 20 + i*50))
             
-        if not lander.alive:#show result when landed
+        if not lander.alive: # show result when landed
             if abs(lander.speed_y) < SAFE_SPEED:
                 msg = font.render("SAFE LANDING!", True, GREEN)
             else:
@@ -177,28 +204,77 @@ class HUD:
             screen.blit(quit_msg, (WIDTH//2 - 150, HEIGHT//2 + 20))
 
 
-# create the game objects
-lander = Lander()#the spaceship
-ground = Ground()#the mars ground
-hud = HUD()#the information display
+# ----------------------------------------
+# Game Objects
+# ----------------------------------------
+lander = None # Lander
+ground = Ground() # Mars ground
+hud = HUD() # Information display
+menu = Menu() # Start menu
+
+# ----------------------------------------
+# Game State   
+# ----------------------------------------
+game_state = MENU
 
 # ----------------------------------------
 # Main Game Loop
 # ----------------------------------------
-while True:
-    for event in pygame.event.get():#check for quit or key press
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-        if event.type == pygame.KEYDOWN and event.key == pygame.K_q and not lander.alive:
-            pygame.quit()
-            sys.exit()
+running = True
+while running: # Main game loop
 
-    lander.update()#move the lander
-    screen.blit(background_image, (0, 0))#draw background image
-    ground.draw()#draw ground
-    lander.draw()#draw spaceship
-    hud.draw(lander)#draw text and results
-    
-    pygame.display.flip()#update the screen
-    clock.tick(60)#run at 60 frames per second
+    # --------------------
+    # Event Handling
+    # --------------------
+    for event in pygame.event.get(): # Check for events
+        if event.type == pygame.QUIT: # Check for quit event
+            running = False
+        
+        if game_state == MENU: # Check for menu events
+            if menu.handle_event(event): # Start the game
+                lander = Lander() # Create lander
+                game_state = PLAYING # Switch to playing state
+        # ----------
+        # Ending Game
+        # ----------
+        elif game_state == ENDED: # Check for end game events
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_q: # Quit on Q key press
+                running = False
+
+        # ----------
+        # Updating Game
+        # ----------
+        if game_state == PLAYING:
+            lander.update() # Update lander position and state
+
+            if lander.landed or not lander.alive: # Check for landing/crash
+                game_state = ENDED # Switch to ended state
+
+        # ----------
+        # Drawing Everything
+        # ----------
+        screen.blit(background_image, (0, 0)) # Draw background image
+        ground.draw() # Draw the ground
+        if game_state == MENU:
+            menu.draw() # Draw the menu
+        else:
+            lander.draw() # Draw the lander
+            hud.draw(lander) # Draw the HUD
+
+        # ----------
+        # End Game Message
+        # ----------
+        if game_state == ENDED: # Show end game message
+            if lander.landed:
+                msg = font.render("SAFE LANDING!", True, GREEN) # Show safe landing message
+                screen.blit(msg, (WIDTH//2 - 180, HEIGHT//2 - 50)) # Center message
+            else:
+                msg = font.render("CRASHED!", True, RED) # Show crash message
+            screen.blit(msg, (WIDTH//2 - 180, HEIGHT//2 - 50))
+            quit_msg = font.render("Press Q to quit", True, WHITE) # Show quit message
+            screen.blit(quit_msg, (WIDTH//2 - 150, HEIGHT//2 + 20))
+
+    pygame.display.flip() # Update the display
+
+pygame.quit() # Quit pygame
+sys.exit() # Quit the game
