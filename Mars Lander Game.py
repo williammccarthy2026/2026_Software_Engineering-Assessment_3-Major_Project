@@ -129,10 +129,14 @@ class Lander:
         if keys[pygame.K_LEFT]: # Check for left arrow key press
             self.angle += 4 # Rotate the Lander
             self.image = self.boosterL_image
+            thrust_sound.play() # Play thrust sound effect
+
         if keys[pygame.K_RIGHT]:
             self.angle -= 4
             self.image = self.boosterR_image
-    
+            thrust_sound.play() # Play thrust sound effect
+
+
         self.angle = max(-90, min(90, self.angle)) # limits the turning angle
 
         # ----------
