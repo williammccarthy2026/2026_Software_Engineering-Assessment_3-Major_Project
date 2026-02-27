@@ -53,7 +53,7 @@ background_image = pygame.image.load("level1_mars-surface.png").convert()
 background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 
 # Load Sound Effects
-thrust_sound = pygame.mixer.Sound(".")
+thrust_sound = pygame.mixer.Sound("lander_thrust.wav") # Load thrust sound effect
 
 # ----------------------------------------
 # Menu Class
@@ -275,6 +275,6 @@ while running: # Main game loop
             screen.blit(quit_msg, (WIDTH//2 - 150, HEIGHT//2 + 20))
 
     pygame.display.flip() # Update the display
-
+    clock.tick(60) # Limit to 60 frames per second
 pygame.quit() # Quit pygame
 sys.exit() # Quit the game
