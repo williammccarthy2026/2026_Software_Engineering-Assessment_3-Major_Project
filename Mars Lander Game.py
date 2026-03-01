@@ -11,6 +11,7 @@ import math # import math for rotation and speed calculations
 MENU = 'MENU'
 PLAYING = 'PLAYING'
 ENDED = 'ENDED'
+PAUSED = 'PAUSED'
 
 # ----------------------------------------
 # Constants
@@ -236,6 +237,11 @@ while running: # Main game loop
             if event.key == pygame.K_r:
                 lander = Lander()
                 game_state = PLAYING # Restart game if R is pressed
+
+            if event.key ==pygame.K_p and game_state == PLAYING:
+                game_state = PAUSED # Pause game if P is pressed
+            elif event.key == pygame.K_p and game_state == PAUSED:
+                game_state = PLAYING # Unpause game if P is pressed again
 
             if game_state == MENU:
                 if event.key == pygame.K_SPACE:
