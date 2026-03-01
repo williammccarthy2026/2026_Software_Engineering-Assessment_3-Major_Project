@@ -5,6 +5,36 @@ import pygame # import the pygame library
 import sys # import sys for exiting the program
 import math # import math for rotation and speed calculations
 
+import os
+import shutil
+import datetime
+
+# Define the source and backup directories
+SOURCE_FOLDER = "/Users/williammccarthy/Desktop/12SWEA/Assessment 3 - Major Project/Mars Lander" # The folder that contains files to be backed up
+BACKUP_FOLDER = "/Users/williammccarthy/Desktop" # The destination folder where backups will be stored
+
+# Generate a timestamp to create a unique backup folder
+timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") # Format: YYYY-MM-DD_HH-MM-SS
+backup_path = os.path.join(BACKUP_FOLDER, f"Assessment 3 Backups{timestamp}") # Backup folder name includes timestamp
+
+# Ensure the backup directory exists; create it if it doesn't
+os.makedirs(backup_path, exist_ok=True) # `exist_ok=True` prevents errors if the folder already exists
+
+# Iterate over all files in the source directory and copy them to the backup folder
+for filename in os.listdir(SOURCE_FOLDER): # List all files in the source folder
+    src_file = os.path.join(SOURCE_FOLDER, filename) # Construct the full file path in the source directory
+    dest_file = os.path.join(backup_path, filename) # Define the corresponding path in the backup directory
+
+if os.path.isfile(src_file): # Ensure that only files (not directories) are copied
+    shutil.copy2(src_file, dest_file) # `copy2` preserves metadata such as timestamps and permissions
+
+# Print a confirmation message after files are copied
+print(f"Backup completed successfully! Files saved in: {backup_path}")
+
+# Optional: Create a compressed ZIP archive of the backup folder
+shutil.make_archive(backup_path, 'zip', backup_path) # Creates a ZIP archive of the backup folder
+print(f"Backup compressed as: {backup_path}.zip") # Display the name of the compressed backup file
+
 # ----------------------------------------
 # Game States
 # ----------------------------------------
