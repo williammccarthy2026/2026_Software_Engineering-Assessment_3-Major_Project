@@ -83,6 +83,35 @@ thrust_sound.set_volume(0.5)
 explosion_sound = pygame.mixer.Sound("lander_explode.wav")
 
 # ----------------------------------------
+# Button Class
+# ----------------------------------------
+class Button:
+    def __init__(self, x, y, width, height, text, action):
+        self.rect = pygame.Rect(x, y, width, height)
+        self.text = text
+        self.action = action
+        self.font = pygame.font.Font(None, 40)
+
+    def draw(self, screen):
+        mouse_pos = pygame.mouse.get_pos()
+
+        if self.rect.collidepoint(mouse_pos):
+            colour = (220, 220, 220)
+        else:
+            colour = (180, 180, 180)
+
+        pygame.draw.rect(screen, colour, self.rect, border_radius=10)
+
+        label = self.font.render(self.text, True, (0,0,0))
+        label_rect = label.get_rect(center=self.rect.center)
+        screen.blit(label, label_rect)
+
+    def handle_event(self, event):
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if self.rect.collidepoint(event.pos):
+                return self.action
+
+# ----------------------------------------
 # Menu Class
 # ----------------------------------------
 class Menu:
@@ -97,16 +126,15 @@ class Menu:
         start_y = HEIGHT - self.margin_y - (self.button_height * 3 + self.spacing * 2)
 
         # Button rectangles
-        self.tutorial_button = pygame.Rect(self.margin_x, start_y, self.button_width, self.button_height)
-        self.begin_button = pygame.Rect(self.margin_x, start_y + self.button_height + self.spacing, self.button_width, self.button_height)
-        self.exit_button = pygame.Rect(self.margin_x, start_y + (self.button_height + self.spacing) * 2, self.button_width, self.button_height)
-
-        self.button_font = pygame.font.Font(None, 40)
+        self.buttons = [
+        Button(self.margin_x, start_y, self.button_width, self.button_height, "Tutorial", "TUTORIAL"),
+        Button(self.margin_x, start_y + self.button_height + self.spacing, self.button_width, self.button_height, "Begin", "BEGIN"),
+        Button(self.margin_x, start_y + (self.button_height + self.spacing) * 2, self.button_width, self.button_height, "Exit", "EXIT")
+    ]
 
     def draw_button(self, rect, text):
         mouse_pos = pygame.mouse.get_pos()
 
-        # Hover effect
         if rect.collidepoint(mouse_pos):
             colour = (220, 220, 220)
         else:
@@ -122,22 +150,14 @@ class Menu:
         screen.blit(menu_screen, (0,0))
 
         # Draw buttons only (no title)
-        self.draw_button(self.tutorial_button, "Tutorial")
-        self.draw_button(self.begin_button, "Begin")
-        self.draw_button(self.exit_button, "Exit")
+        for button in self.buttons:
+            button.draw(screen)
 
     def handle_event(self, event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if self.tutorial_button.collidepoint(event.pos):
-                print("Tutorial pressed")  # Placeholder
-
-            if self.begin_button.collidepoint(event.pos):
-                return "BEGIN"
-
-            if self.exit_button.collidepoint(event.pos):
-                return "EXIT"
-
-        return None
+        for button in self.buttons:
+            action = button.handle_event(event)
+            if action:
+                return action
 
 # ----------------------------------------
 # Lander Class
