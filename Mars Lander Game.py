@@ -85,9 +85,6 @@ explosion_sound = pygame.mixer.Sound("lander_explode.wav")
 # ----------------------------------------
 # Menu Class
 # ----------------------------------------
-# ----------------------------------------
-# Menu Class
-# ----------------------------------------
 class Menu:
     def __init__(self):
         self.button_width = 200
@@ -256,11 +253,19 @@ class Lander:
 # Ground class
 # ----------------------------------------
 class Ground:
+    def __init__(self):
+        # Load the ground image
+        self.image = pygame.image.load("mars_ground.png").convert_alpha()
+        # Scale it to fit the width of the screen and the height you want
+        self.image = pygame.transform.scale(self.image, (WIDTH, 50))
+        # Position the ground at the bottom of the screen
+        self.rect = self.image.get_rect(topleft=(0, HEIGHT-50))
+
     def draw(self):
-        pygame.draw.rect(screen, GROUND, (0, HEIGHT-50, WIDTH, 50))#main ground
-        pygame.draw.rect(screen, (150, 150, 150), (WIDTH//2-100, HEIGHT-55, 200, 10))#flat landing pad
-
-
+        screen.blit(self.image, self.rect)
+        # Optional: keep landing pad rectangle
+        pygame.draw.rect(screen, (150, 150, 150), (WIDTH//2-100, HEIGHT-55, 200, 10))
+        
 # ----------------------------------------
 # HUD Class
 # ----------------------------------------
