@@ -80,6 +80,7 @@ background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 # Load Sound Effects
 thrust_sound = pygame.mixer.Sound("lander_thrust.mp3") # Load thrust sound effect
 thrust_sound.set_volume(0.5)
+explosion_sound = pygame.mixer.Sound("lander_explode.wav")
 
 # ----------------------------------------
 # Menu Class
@@ -199,8 +200,10 @@ class Lander:
                 self.landed = True
             else:
                 self.alive = False
-                self.image = self.crash_image
+                crash_rotated = pygame.transform.rotate(self.crash_image, self.angle)
+                self.image = crash_rotated
                 self.rect = self.image.get_rect(center=(self.x, self.y))
+                explosion_sound.play()
 
     def draw(self):
         screen.blit(self.image, self.rect)#draw the spaceship image
