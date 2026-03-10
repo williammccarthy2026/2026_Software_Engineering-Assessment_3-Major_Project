@@ -71,6 +71,8 @@ clock = pygame.time.Clock() # control frame rate
 font = pygame.font.Font(None, 50) # font for on-screen text
 
 # Load background image
+menu_screen = pygame.image.load("menu_screen.png").convert() # Load menu background image
+menu_screen = pygame.transform.scale(menu_screen, (WIDTH, HEIGHT)) # Scale menu background to fit screen
 background_image = pygame.image.load("level1_mars-surface.png").convert()
 background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 
@@ -82,7 +84,7 @@ thrust_sound = pygame.mixer.Sound("lander_thrust.wav") # Load thrust sound effec
 # ----------------------------------------
 class Menu:
     def draw(self):
-        screen.blit(background_image, (0, 0)) # Add background image
+        screen.blit(menu_screen, (0, 0)) # Add background image
         title = font.render("Mars Lander", True, WHITE) # Draw title
         instructions = font.render("Press SPACE to start", True, WHITE) # instructions
         screen.blit(title, (WIDTH//2 - title.get_width()//2, HEIGHT//2 - 100)) # draw title
