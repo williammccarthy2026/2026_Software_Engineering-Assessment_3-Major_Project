@@ -77,7 +77,8 @@ background_image = pygame.image.load("level1_mars-surface.png").convert()
 background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 
 # Load Sound Effects
-thrust_sound = pygame.mixer.Sound("lander_thrust.wav") # Load thrust sound effect
+thrust_sound = pygame.mixer.Sound("lander_thrust.mp3") # Load thrust sound effect
+thrust_sound.set_volume(0.5)
 
 # ----------------------------------------
 # Menu Class
@@ -110,6 +111,7 @@ class Lander:
         self.speed_y = 0 # vertical speed
         self.speed_x = 0 # horizontal speed
         
+        self.thrust_sound_playing = False # Track if thrust sound is currently playing
         self.alive = True
         self.landed = False
         self.fuel = START_FUEL#current fuel
@@ -147,19 +149,22 @@ class Lander:
             self.speed_y -= math.cos(rad) * THRUST # Adjust vertical speed based on angle
             self.fuel -= 1 # Removes 1 fuel
             self.thrusting = True 
-            thrust_sound.play() # Play thrust sound effect
 
-        
+            if not self.thrust_sound_playing:
+                 thrust_sound.play(-1)   # loop while held
+                 self.thrust_sound_playing = True
+        else:
+            if self.thrust_sound_playing:
+                thrust_sound.stop()
+                self.thrust_sound_playing = False
+
         if keys[pygame.K_LEFT]: # Check for left arrow key press
             self.angle += 4 # Rotate the Lander
             self.image = self.boosterL_image
-            thrust_sound.play() # Play thrust sound effect
 
         if keys[pygame.K_RIGHT]:
             self.angle -= 4
             self.image = self.boosterR_image
-            thrust_sound.play() # Play thrust sound effect
-
 
         self.angle = max(-90, min(90, self.angle)) # limits the turning angle
 
@@ -221,16 +226,6 @@ class HUD:
         for i, text in enumerate(texts): # display each line
             msg = font.render(text, True, WHITE)
             screen.blit(msg, (20, 20 + i*50))
-            
-        if not lander.alive: # show result when landed
-            if abs(lander.speed_y) < SAFE_SPEED:
-                msg = font.render("SAFE LANDING!", True, GREEN)
-            else:
-                msg = font.render("CRASHED!", True, RED)
-            screen.blit(msg, (WIDTH//2 - 180, HEIGHT//2 - 50))
-            quit_msg = font.render("Press Q to quit", True, WHITE)
-            screen.blit(quit_msg, (WIDTH//2 - 150, HEIGHT//2 + 20))
-
 
 # ----------------------------------------
 # Game Objects
@@ -302,14 +297,18 @@ while running: # Main game loop
     # End Game Message
     # ----------
     if game_state == ENDED: # Show end game message
+
         if lander.landed:
-            msg = font.render("SAFE LANDING!", True, GREEN) # Show safe landing message
-            screen.blit(msg, (WIDTH//2 - 180, HEIGHT//2 - 50)) # Center message
+            msg = font.render("SAFE LANDING!", True, GREEN)
         else:
-            msg = font.render("CRASHED!", True, RED) # Show crash message
-        screen.blit(msg, (WIDTH//2 - 180, HEIGHT//2 - 50))
-        quit_msg = font.render("Press Q to quit", True, WHITE) # Show quit message
-        screen.blit(quit_msg, (WIDTH//2 - 150, HEIGHT//2 + 20))
+            msg = font.render("CRASHED!", True, RED)
+
+        msg_rect = msg.get_rect(center=(WIDTH//2, HEIGHT//2 - 40)) # Center the message on the screen
+        screen.blit(msg, msg_rect) # Draw the message on the screen
+
+        quit_msg = font.render("Press Q to quit or R to restart", True, WHITE) # Instructions for quitting or restarting
+        quit_rect = quit_msg.get_rect(center=(WIDTH//2, HEIGHT//2 + 20)) # Center the instructions on the screen
+        screen.blit(quit_msg, quit_rect) # Draw the instructions on the screen
 
     clock.tick(60) # Limit to 60 frames per second
     pygame.display.flip() # Update the display
