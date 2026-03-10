@@ -76,6 +76,7 @@ menu_screen = pygame.transform.scale(menu_screen, (WIDTH, HEIGHT)) # Scale menu 
 background_image = pygame.image.load("level1_mars-surface.png").convert()
 background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 
+
 # Load Sound Effects
 thrust_sound = pygame.mixer.Sound("lander_thrust.mp3") # Load thrust sound effect
 thrust_sound.set_volume(0.5)
@@ -123,6 +124,7 @@ class Lander:
         self.booster_image = pygame.image.load("lander_(boosterv1).png").convert_alpha() # Loads booster image
         self.boosterL_image = pygame.image.load("lander_(boosterL).png").convert_alpha() # Loads left booster image
         self.boosterR_image = pygame.image.load("lander_(boosterR).png").convert_alpha() # Loads right booster image
+        self.crash_image = pygame.image.load("explosion3.png").convert_alpha() # Loads crash image
 
         self.image = self.base_image
         self.rect = self.image.get_rect(center=(self.x, self.y)) # Centers lander image on rectangle for positioning
@@ -197,6 +199,8 @@ class Lander:
                 self.landed = True
             else:
                 self.alive = False
+                self.image = self.crash_image
+                self.rect = self.image.get_rect(center=(self.x, self.y))
 
     def draw(self):
         screen.blit(self.image, self.rect)#draw the spaceship image
