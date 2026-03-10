@@ -85,19 +85,62 @@ explosion_sound = pygame.mixer.Sound("lander_explode.wav")
 # ----------------------------------------
 # Menu Class
 # ----------------------------------------
+# ----------------------------------------
+# Menu Class
+# ----------------------------------------
 class Menu:
+    def __init__(self):
+        self.button_width = 200
+        self.button_height = 60
+        self.spacing = 20
+        self.margin_x = 50  # distance from left edge
+        self.margin_y = 50  # distance from bottom edge
+
+        # Compute starting Y so buttons stack upwards from bottom-left
+        start_y = HEIGHT - self.margin_y - (self.button_height * 3 + self.spacing * 2)
+
+        # Button rectangles
+        self.tutorial_button = pygame.Rect(self.margin_x, start_y, self.button_width, self.button_height)
+        self.begin_button = pygame.Rect(self.margin_x, start_y + self.button_height + self.spacing, self.button_width, self.button_height)
+        self.exit_button = pygame.Rect(self.margin_x, start_y + (self.button_height + self.spacing) * 2, self.button_width, self.button_height)
+
+        self.button_font = pygame.font.Font(None, 40)
+
+    def draw_button(self, rect, text):
+        mouse_pos = pygame.mouse.get_pos()
+
+        # Hover effect
+        if rect.collidepoint(mouse_pos):
+            colour = (220, 220, 220)
+        else:
+            colour = (180, 180, 180)
+
+        pygame.draw.rect(screen, colour, rect, border_radius=10)
+
+        label = self.button_font.render(text, True, (0,0,0))
+        label_rect = label.get_rect(center=rect.center)
+        screen.blit(label, label_rect)
+
     def draw(self):
-        screen.blit(menu_screen, (0, 0)) # Add background image
-        title = font.render("Mars Lander", True, WHITE) # Draw title
-        instructions = font.render("Press SPACE to start", True, WHITE) # instructions
-        screen.blit(title, (WIDTH//2 - title.get_width()//2, HEIGHT//2 - 100)) # draw title
-        screen.blit(instructions, (WIDTH//2 - instructions.get_width()//2, HEIGHT//2 + 20)) # draw instructions
+        screen.blit(menu_screen, (0,0))
+
+        # Draw buttons only (no title)
+        self.draw_button(self.tutorial_button, "Tutorial")
+        self.draw_button(self.begin_button, "Begin")
+        self.draw_button(self.exit_button, "Exit")
 
     def handle_event(self, event):
-            if event.type == pygame.KEYDOWN: # Detects key press
-                if event.key == pygame.K_SPACE: # Checks if space key pressed
-                    return True # Starts the game
-            return False
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if self.tutorial_button.collidepoint(event.pos):
+                print("Tutorial pressed")  # Placeholder
+
+            if self.begin_button.collidepoint(event.pos):
+                return "BEGIN"
+
+            if self.exit_button.collidepoint(event.pos):
+                return "EXIT"
+
+        return None
 
 # ----------------------------------------
 # Lander Class
@@ -275,10 +318,15 @@ while running: # Main game loop
             elif event.key == pygame.K_p and game_state == PAUSED:
                 game_state = PLAYING # Unpause game if P is pressed again
 
-            if game_state == MENU:
-                if event.key == pygame.K_SPACE:
-                    lander = Lander()
-                    game_state = PLAYING # Start game if space is pressed in menu
+        if game_state == MENU:
+            result = menu.handle_event(event)
+
+            if result == "BEGIN":
+                lander = Lander()
+                game_state = PLAYING
+
+            if result == "EXIT":
+                running = False
 
     # ----------
     # Updating Game
