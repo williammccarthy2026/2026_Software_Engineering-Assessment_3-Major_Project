@@ -22,13 +22,7 @@ backup_path = os.path.join(BACKUP_FOLDER, f"Assessment 3 Backups{timestamp}") # 
 # Ensure the backup directory exists; create it if it doesn't
 os.makedirs(backup_path, exist_ok=True) # `exist_ok=True` prevents errors if the folder already exists
 
-# Iterate over all files in the source directory and copy them to the backup folder
-for filename in os.listdir(SOURCE_FOLDER): # List all files in the source folder
-    src_file = os.path.join(SOURCE_FOLDER, filename) # Construct the full file path in the source directory
-    dest_file = os.path.join(backup_path, filename) # Define the corresponding path in the backup directory
-
-    if os.path.isfile(src_file): # Ensure that only files (not directories) are copied
-        shutil.copy2(src_file, dest_file) # `copy2` preserves metadata such as timestamps and permissions
+shutil.copytree(SOURCE_FOLDER, backup_path, dirs_exist_ok=True) # Copy all files from source to backup
 
 # Print a confirmation message after files are copied
 print(f"Backup completed successfully! Files saved in: {backup_path}")
@@ -44,7 +38,7 @@ PAUSED = 'PAUSED'
 # ----------------------------------------
 # Constants
 # ----------------------------------------
-WIDTH = 1024 # screen width in pixels
+WIDTH = 1200 # screen width in pixels
 HEIGHT = 750 # screen height in pixels
 GRAVITY = 0.1 # how fast the lander falls
 THRUST = 0.25 # how strong the space key thrust is
@@ -58,6 +52,9 @@ SKY = (255, 150, 100)
 GROUND = (200, 80, 30)
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
+BLACK = (0, 0, 0)
+EMERALD = (21, 119, 40)
+GREY = (107, 107, 107)
 RED = (255, 0, 0)
 
 # ----------------------------------------
@@ -76,48 +73,61 @@ menu_screen = pygame.transform.scale(menu_screen, (WIDTH, HEIGHT)) # Scale menu 
 background_image = pygame.image.load("level1_mars-surface.png").convert()
 background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 
-
 # Load Sound Effects
 thrust_sound = pygame.mixer.Sound("lander_thrust.mp3") # Load thrust sound effect
 thrust_sound.set_volume(0.5)
 explosion_sound = pygame.mixer.Sound("lander_explode.wav")
+menu_button_hover = pygame.mixer.Sound("menu_button_hover.wav")
+menu_button_accept = pygame.mixer.Sound("menu_button_accept.wav")
+menu_button_accept.set_volume(0.1)
 
 # ----------------------------------------
 # Button Class
 # ----------------------------------------
 class Button:
-    def __init__(self, x, y, width, height, text, action):
+    def __init__(self, x, y, width, height, text, action): # Initialize button with position, size, text, and action
         self.rect = pygame.Rect(x, y, width, height)
         self.text = text
         self.action = action
         self.font = pygame.font.Font(None, 40)
+        self.hovered_last_frame = False # Track if button was hovered in the last frame to control sound playback
 
     def draw(self, screen):
-        mouse_pos = pygame.mouse.get_pos()
+        mouse_pos = pygame.mouse.get_pos() 
+        hovered = self.rect.collidepoint(mouse_pos) # Check if mouse is hovering over the button
 
-        if self.rect.collidepoint(mouse_pos):
-            colour = (220, 220, 220)
-        else:
-            colour = (180, 180, 180)
+        if hovered and not self.hovered_last_frame: # Play hover sound only when the button is first hovered over
+            menu_button_hover.play()
+        self.hovered_last_frame = hovered
 
-        pygame.draw.rect(screen, colour, self.rect, border_radius=10)
+        if hovered: # Change button appearance when hovered
+            fill_colour = EMERALD
+            outline_colour = BLACK
+            text_colour = BLACK
+        else: # Normal button appearance
+            fill_colour = BLACK
+            outline_colour = GREY
+            text_colour = GREY
 
-        label = self.font.render(self.text, True, (0,0,0))
-        label_rect = label.get_rect(center=self.rect.center)
-        screen.blit(label, label_rect)
+        pygame.draw.rect(screen, fill_colour, self.rect) # Draw button background
+        pygame.draw.rect(screen, outline_colour, self.rect, 3) # Draw button outline
+
+        label = self.font.render(self.text, True, text_colour) # Render the button text
+        label_rect = label.get_rect(center=self.rect.center) # Center the text on the button
+        screen.blit(label, label_rect) # Draw the text on the button
 
     def handle_event(self, event):
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.rect.collidepoint(event.pos):
-                return self.action
+                return self.action # Return the action associated with the button when clicked
 
 # ----------------------------------------
 # Menu Class
 # ----------------------------------------
 class Menu:
     def __init__(self):
-        self.button_width = 200
-        self.button_height = 60
+        self.button_width = 260
+        self.button_height = 75
         self.spacing = 20
         self.margin_x = 50  # distance from left edge
         self.margin_y = 50  # distance from bottom edge
@@ -135,10 +145,10 @@ class Menu:
     def draw_button(self, rect, text):
         mouse_pos = pygame.mouse.get_pos()
 
-        if rect.collidepoint(mouse_pos):
+        if rect.collidepoint(mouse_pos): # Change button colour when hovered
             colour = (220, 220, 220)
         else:
-            colour = (180, 180, 180)
+            colour = (180, 180, 180) # Normal button colour
 
         pygame.draw.rect(screen, colour, rect, border_radius=10)
 
@@ -157,6 +167,7 @@ class Menu:
         for button in self.buttons:
             action = button.handle_event(event)
             if action:
+                menu_button_accept.play() # Play accept sound when a button is clicked
                 return action
 
 # ----------------------------------------
@@ -377,6 +388,8 @@ while running: # Main game loop
     # End Game Message
     # ----------
     if game_state == ENDED: # Show end game message
+
+        thrust_sound.stop() # Stop thrust sound if it was playing
 
         if lander.landed:
             msg = font.render("SAFE LANDING!", True, GREEN)
