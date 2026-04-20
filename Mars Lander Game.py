@@ -12,21 +12,30 @@ import datetime
 # Backup Procedures
 # ----------------------------------------
 # Define the source and backup directories
-SOURCE_FOLDER = "/Users/williammccarthy/Desktop/12SWEA/Assessment 3 - Major Project/Mars Lander" # The folder that contains files to be backed up
-BACKUP_FOLDER = "/Users/williammccarthy/Desktop" # The destination folder where backups will be stored
+# Use project-relative defaults and fail gracefully if backup cannot run.
 
-# Generate a timestamp to create a unique backup folder
-timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") # Format: YYYY-MM-DD_HH-MM-SS
-backup_path = os.path.join(BACKUP_FOLDER, f"Assessment 3 Backups{timestamp}") # Backup folder name includes timestamp
+SOURCE_FOLDER = os.path.dirname(os.path.abspath(__file__)) # Backup the current project folder by default
+BACKUP_FOLDER = os.path.join(os.path.dirname(SOURCE_FOLDER), "Mars_Lander_Backups") # Keep backups outside source folder
 
-# Ensure the backup directory exists; create it if it doesn't
-os.makedirs(backup_path, exist_ok=True) # `exist_ok=True` prevents errors if the folder already exists
+def create_backup():
+    """Create a timestamped backup of SOURCE_FOLDER without crashing the game."""
+    if not os.path.isdir(SOURCE_FOLDER):
+        print(f"Backup skipped: source folder not found: {SOURCE_FOLDER}")
+        return
 
-shutil.copytree(SOURCE_FOLDER, backup_path, dirs_exist_ok=True) # Copy all files from source to backup
+    # Generate a timestamp to create a unique backup folder
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") # Format: YYYY-MM-DD_HH-MM-SS
+    backup_path = os.path.join(BACKUP_FOLDER, f"Assessment_3_Backup_{timestamp}")
 
-# Print a confirmation message after files are copied
-print(f"Backup completed successfully! Files saved in: {backup_path}")
+    try:
+        # Ensure the backup directory exists; create it if it doesn't
+        os.makedirs(backup_path, exist_ok=True) # `exist_ok=True` prevents errors if the folder already exists
+        shutil.copytree(SOURCE_FOLDER, backup_path, dirs_exist_ok=True) # Copy all files from source to backup
+        print(f"Backup completed successfully! Files saved in: {backup_path}")
+    except OSError as err:
+        print(f"Backup skipped due to filesystem error: {err}")
 
+create_backup()
 # ----------------------------------------
 # Game States
 # ----------------------------------------
@@ -79,7 +88,7 @@ thrust_sound.set_volume(0.5)
 explosion_sound = pygame.mixer.Sound("lander_explode.wav")
 menu_button_hover = pygame.mixer.Sound("menu_button_hover.wav")
 menu_button_accept = pygame.mixer.Sound("menu_button_accept.wav")
-menu_button_accept.set_volume(0.1)
+menu_button_accept.set_volume(0.06)
 
 # ----------------------------------------
 # Button Class
