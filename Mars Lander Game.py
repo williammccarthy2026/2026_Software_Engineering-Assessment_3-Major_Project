@@ -249,20 +249,29 @@ class Lander:
     # --------------------
     # Tracking lander position
     # --------------------
-    def update(self):
+    def update(self, gravity_scale=1.0, frozen=False):
         if not self.alive: # tracks landers state
+            return
+        
+        if frozen:
+            if self.thrust_sound_playing:
+                thrust_sound.stop()
+                self.thrust_sound_playing = False
             return
 
         self.thrusting = False
 
-        self.speed_y += GRAVITY # Gravity propels lander down
+        self.speed_y += GRAVITY * gravity_scale # Gravity propels lander down
 
         keys = pygame.key.get_pressed() # Checks which keys are currently pressed
+
+        if not freeze_descent:
+            self.speed_y += GRAVITY * gravity_scale # Gravity propels lander down
 
         # ----------
         # Controls
         # ----------
-        if keys[pygame.K_SPACE] and self.fuel > 0: # Checks if space key is pressed and if fuel is left
+        if keys[pygame.K_SPACE] and self.fuel > 0 and not freeze_descent: # Check for space key press and fuel availability
             rad = math.radians(self.angle)
             self.speed_x -= math.sin(rad) * THRUST # Adjust horizontal speed based on angle
             self.speed_y -= math.cos(rad) * THRUST # Adjust vertical speed based on angle
@@ -303,7 +312,11 @@ class Lander:
         self.image = pygame.transform.rotate(image_to_rotate, self.angle)
         self.rect = self.image.get_rect(center=(self.x, self.y))
 
-        self.y += self.speed_y
+        if freeze_descent:
+            self.speed_y = 0
+        else:
+            self.y += self.speed_y
+
         self.x += self.speed_x
 
         # --------------------
@@ -372,38 +385,56 @@ class TutorialGuide:
         self.text_font = pygame.font.Font(None, 34)
         self.tip_colour = (20, 20, 20)
         self.box_colour = (255, 255, 255)
+        self.freeze_duration_frames = 75
+        self.freeze_frames_remaining = 0
+        self.current_step_index = None
+        self.completed_steps = set()
+        self.current_step_index = None
 
-    def get_steps(self, lander):
-        low_altitude = (HEIGHT - 100 - lander.y) < 220
 
-        return [
-            {
-                "title": "Tutorial: Turning",
-                "tip": "Use LEFT and RIGHT to tilt the lander.",
-                "done": abs(lander.angle) >= 20
-            },
-            {
-                "title": "Tutorial: Boosting",
-                "tip": "Hold SPACE to fire the booster and slow your fall.",
-                "done": lander.fuel < START_FUEL - 20
-            },
-            {
-                "title": "Tutorial: Final Approach",
-                "tip": "Stay upright and land gently on the pad.",
-                "done": low_altitude
-            },
-        ]
+    def get_step_states(self, lander):
+        steps = self.get_steps(lander)
+        states = []
+        for index, step in enumerate(steps):
+            done = step["done"] or index in self.completed_steps
+            states.append({"title": step["title"], "tip": step["tip"], "done": done})
+        return states
 
+    def update(self, lander):
+        if not lander.alive or lander.landed:
+            return {"freeze_descent": False, "gravity_scale": 0.5}
+
+        steps = self.get_step_states(lander)
+
+        for index, step in enumerate(steps):
+            if step["done"]:
+                self.completed_steps.add(index)
+
+        next_step_index = len(steps)
+        for index, step in enumerate(steps):
+            if not step["done"]:
+                next_step_index = index
+                break
+
+        self.current_step_index = next_step_index
+
+        freeze_descent = 0 not in self.completed_steps
+
+        return {"freeze_descent": freeze_descent, "gravity_scale": 0.5}
     def draw(self, lander):
         if not lander.alive or lander.landed:
             return
 
-        steps = self.get_steps(lander)
+        steps = self.get_step_states(lander)
         active_step = None
-        for step in steps:
-            if not step["done"]:
-                active_step = step
-                break
+        
+        if self.current_step_index is not None and self.current_step_index < len(steps):
+            active_step = steps[self.current_step_index]
+        else:
+            for step in steps:
+                if not step["done"]:
+                    active_step = step
+                    break
 
         if active_step is None:
             active_step = {
@@ -488,7 +519,14 @@ while running: # Main game loop
     # Updating Game
     # ----------
     if game_state == PLAYING:
-        lander.update() # Update lander position and state
+        tutorial_settings = {"freeze_descent": False, "gravity_scale": 1.0}
+        if tutorial_guide is not None and current_level == "TUTORIAL":
+            tutorial_settings = tutorial_guide.update(lander)
+
+        lander.update(
+            gravity_scale=tutorial_settings["gravity_scale"],
+            freeze_descent=tutorial_settings["freeze_descent"]
+        ) # Update lander position and state
 
         if lander.landed or not lander.alive: # Check for landing/crash
             game_state = ENDED # Switch to ended state
@@ -502,7 +540,8 @@ while running: # Main game loop
         menu.draw() # Draw the menu
     else:
         lander.draw() # Draw the lander
-        hud.draw(lander) # Draw the HUD
+        if current_level != "TUTORIAL":
+            hud.draw(lander) # Draw the HUD
         if tutorial_guide is not None and current_level == "TUTORIAL":
             tutorial_guide.draw(lander)
 
