@@ -249,19 +249,16 @@ class Lander:
     # --------------------
     # Tracking lander position
     # --------------------
-    def update(self, gravity_scale=1.0, frozen=False):
+    def update(self, gravity_scale=1.0, freeze_descent=False):
         if not self.alive: # tracks landers state
             return
         
-        if frozen:
+        if freeze_descent:
             if self.thrust_sound_playing:
                 thrust_sound.stop()
                 self.thrust_sound_playing = False
-            return
 
         self.thrusting = False
-
-        self.speed_y += GRAVITY * gravity_scale # Gravity propels lander down
 
         keys = pygame.key.get_pressed() # Checks which keys are currently pressed
 
@@ -385,12 +382,25 @@ class TutorialGuide:
         self.text_font = pygame.font.Font(None, 34)
         self.tip_colour = (20, 20, 20)
         self.box_colour = (255, 255, 255)
-        self.freeze_duration_frames = 75
-        self.freeze_frames_remaining = 0
+        self.turn_intro_shown = False
+        self.turn_intro_frames = 75
+        self.turn_intro_frames_remaining = self.turn_intro_frames
         self.current_step_index = None
         self.completed_steps = set()
-        self.current_step_index = None
 
+    def get_steps(self, lander):
+            return [
+                {
+                    "title": "Use Main Thruster",
+                    "tip": "Hold SPACE to fire the main thruster.",
+                    "done": lander.fuel < START_FUEL
+                },
+                {
+                    "title": "Learn to Turn",
+                    "tip": "Use LEFT and RIGHT arrows to rotate the lander.",
+                    "done": abs(lander.angle) > 0
+                }
+            ]
 
     def get_step_states(self, lander):
         steps = self.get_steps(lander)
@@ -418,7 +428,14 @@ class TutorialGuide:
 
         self.current_step_index = next_step_index
 
-        freeze_descent = 0 not in self.completed_steps
+        turn_step_active = self.current_step_index == 1 and 0 in self.completed_steps and 1 not in self.completed_steps
+        if turn_step_active and not self.turn_intro_shown:
+            self.turn_intro_frames_remaining -= 1
+            freeze_descent = self.turn_intro_frames_remaining > 0
+            if self.turn_intro_frames_remaining <= 0:
+                self.turn_intro_shown = True
+        else:
+            freeze_descent = False
 
         return {"freeze_descent": freeze_descent, "gravity_scale": 0.5}
     def draw(self, lander):
