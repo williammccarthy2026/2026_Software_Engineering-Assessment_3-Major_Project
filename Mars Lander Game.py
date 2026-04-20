@@ -18,7 +18,7 @@ SOURCE_FOLDER = os.path.dirname(os.path.abspath(__file__)) # Backup the current 
 BACKUP_FOLDER = os.path.join(os.path.dirname(SOURCE_FOLDER), "Mars_Lander_Backups") # Keep backups outside source folder
 
 def create_backup():
-    if not os.path.isdir(SOURCE_FOLDER): # Check if source folder exists before attempting backup
+    if not os.path.isdir(SOURCE_FOLDER):
         print(f"Backup skipped: source folder not found: {SOURCE_FOLDER}")
         return
 
@@ -35,7 +35,6 @@ def create_backup():
         print(f"Backup skipped due to filesystem error: {err}")
 
 create_backup()
-
 # ----------------------------------------
 # Game States
 # ----------------------------------------
@@ -65,6 +64,7 @@ BLACK = (0, 0, 0)
 ORANGE = (204, 102, 0)
 GREY = (107, 107, 107)
 RED = (255, 0, 0)
+YELLOW = (255, 255, 0)
 
 # ----------------------------------------
 # Pygame Setup
@@ -76,15 +76,11 @@ pygame.display.set_caption("Mars Lander") # window title
 clock = pygame.time.Clock() # control frame rate
 font = pygame.font.Font(None, 50) # font for on-screen text
 
-# --------------------
-# Load Images and Sounds
-# --------------------
-def load_scaled_image(path, size): # Load an image and scale it to the specified size
-    image = pygame.image.load(path).convert_alpha()
-    return pygame.transform.scale(image, size)
-
-# Load menu background image
-menu_screen = load_scaled_image("menu_screen.png", (WIDTH, HEIGHT))
+# Load background image
+menu_screen = pygame.image.load("menu_screen.png").convert() # Load menu background image
+menu_screen = pygame.transform.scale(menu_screen, (WIDTH, HEIGHT)) # Scale menu background to fit screen
+background_image = pygame.image.load("Level_1_Background.png").convert()
+background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
 
 # Load Sound Effects
 thrust_sound = pygame.mixer.Sound("lander_thrust.mp3") # Load thrust sound effect
@@ -114,7 +110,7 @@ class Button:
         self.hovered_last_frame = hovered
 
         if hovered: # Change button appearance when hovered
-            fill_colour = ORANGE
+            fill_colour = ORANGE            
             outline_colour = BLACK
             text_colour = BLACK
         else: # Normal button appearance
@@ -182,20 +178,6 @@ class Menu:
             if action:
                 menu_button_accept.play() # Play accept sound when a button is clicked
                 return action
-
-# ----------------------------------------
-# Level Class
-# ----------------------------------------
-class Level:
-    def __init__(self, name, background_path, ground_path, tutorial_steps=None, safe_speed=SAFE_SPEED, start_fuel=START_FUEL):
-        self.name = name
-        self.background_path = background_path
-        self.ground_path = ground_path
-        self.tutorial_steps = tutorial_steps or []
-        self.safe_speed = safe_speed
-        self.start_fuel = start_fuel
-        self.background_image = load_scaled_image(self.background_path, (WIDTH, HEIGHT))
-        self.is_tutorial = len(self.tutorial_steps) > 0
 
 # ----------------------------------------
 # Lander Class
@@ -294,7 +276,7 @@ class Lander:
         if self.y > HEIGHT - 100:
             self.y = HEIGHT - 100
             self.rect.center = (self.x, self.y)
-            if abs(self.speed_y) <= self.safe_speed and abs(self.angle) <= 12:
+            if abs(self.speed_y) <= SAFE_SPEED and abs(self.angle) <= 12:
                 self.landed = True
             else:
                 self.alive = False
@@ -311,9 +293,9 @@ class Lander:
 # Ground class
 # ----------------------------------------
 class Ground:
-    def __init__(self, image_path):
+    def __init__(self):
         # Load the ground image
-        self.image = load_scaled_image(image_path, (WIDTH, 50))
+        self.image = pygame.image.load("Level_1_Ground.png").convert_alpha()
         # Scale it to fit the width of the screen and the height you want
         self.image = pygame.transform.scale(self.image, (WIDTH, 50))
         # Position the ground at the bottom of the screen
@@ -322,13 +304,13 @@ class Ground:
     def draw(self):
         screen.blit(self.image, self.rect)
         # Optional: keep landing pad rectangle
-        pygame.draw.rect(screen, (150, 150, 150), (WIDTH//2-100, HEIGHT-55, 200, 10))
+        pygame.draw.rect(screen, WHITE, (WIDTH//2-100, HEIGHT-55, 200, 10))      
         
 # ----------------------------------------
 # HUD Class
 # ----------------------------------------
 class HUD:
-    def draw(self, lander, level, tutorial_step):
+    def draw(self, lander):
         altitude = HEIGHT - 100 - lander.y # distance above ground
         
         texts = [ # information to show
@@ -340,42 +322,11 @@ class HUD:
             msg = font.render(text, True, WHITE)
             screen.blit(msg, (20, 20 + i*50))
 
-        level_name_msg = font.render(f"Level: {level.name}", True, WHITE)
-        screen.blit(level_name_msg, (20, 120))
-
-        if level.is_tutorial and level.tutorial_steps:
-            step_text = level.tutorial_steps[tutorial_step]
-            tutorial_msg = font.render(f"Tutorial: {step_text}", True, ORANGE)
-            screen.blit(tutorial_msg, (20, 170))
-
 # ----------------------------------------
 # Game Objects
 # ----------------------------------------
-MAIN_LEVEL = Level(
-    "Main Mission",
-    "level1_mars-surface.png",
-    "mars_ground.png",
-    is_tutorial=False
-)
-
-TUTORIAL_LEVEL = Level(
-    "Tutorial",
-    "tutorial_mars-surface.png",
-    "tutorial_ground.png",
-    tutorial_steps=[
-        "Press LEFT and RIGHT to rotate your lander.",
-        "Hold SPACE to fire boosters and slow your descent.",
-        "Land softly: keep vertical speed low and angle near upright."
-    ],
-    safe_speed=SAFE_SPEED + 1,
-    start_fuel=START_FUEL + 150,
-    is_tutorial=True
-)
-
-active_level = MAIN_LEVEL
-tutorial_step = 0
 lander = None # Lander
-ground = Ground(active_level.ground_path) # Mars ground
+ground = Ground() # Mars ground
 hud = HUD() # Information display
 menu = Menu() # Start menu
 
@@ -384,15 +335,6 @@ menu = Menu() # Start menu
 # ----------------------------------------
 game_state = MENU
 
-def start_level(level): # Function to start a level, initializing the lander, ground, and tutorial step
-    global active_level, lander, ground, tutorial_step, game_state
-    active_level = level
-    tutorial_step = 0
-    lander = Lander()
-    lander.safe_speed = level.safe_speed
-    lander.fuel = level.start_fuel
-    ground = Ground(level.ground_path)
-    game_state = PLAYING
 # ----------------------------------------
 # Main Game Loop
 # ----------------------------------------
@@ -413,7 +355,8 @@ while running: # Main game loop
                 running = False # Quit game if Q is pressed
 
             if event.key == pygame.K_r:
-                start_level(active_level) # Restart current level if R is pressed
+                lander = Lander()
+                game_state = PLAYING # Restart game if R is pressed
 
             if event.key ==pygame.K_p and game_state == PLAYING:
                 game_state = PAUSED # Pause game if P is pressed
@@ -424,10 +367,8 @@ while running: # Main game loop
             result = menu.handle_event(event)
 
             if result == "BEGIN":
-                start_level(MAIN_LEVEL)
-
-            if result == "TUTORIAL":
-                start_level(TUTORIAL_LEVEL)
+                lander = Lander()
+                game_state = PLAYING
 
             if result == "EXIT":
                 running = False
@@ -438,26 +379,19 @@ while running: # Main game loop
     if game_state == PLAYING:
         lander.update() # Update lander position and state
 
-        if active_level.is_tutorial:
-                    if tutorial_step == 0 and (pygame.key.get_pressed()[pygame.K_LEFT] or pygame.key.get_pressed()[pygame.K_RIGHT]):
-                        tutorial_step = 1
-                    elif tutorial_step == 1 and pygame.key.get_pressed()[pygame.K_SPACE]:
-                        tutorial_step = 2
-
-
         if lander.landed or not lander.alive: # Check for landing/crash
             game_state = ENDED # Switch to ended state
 
     # ----------
     # Drawing Everything
     # ----------
-    screen.blit(active_level.background_image, (0, 0)) # Draw level background image
+    screen.blit(background_image, (0, 0)) # Draw background image
     ground.draw() # Draw the ground
     if game_state == MENU:
         menu.draw() # Draw the menu
     else:
         lander.draw() # Draw the lander
-        hud.draw(lander, active_level, tutorial_step) # Draw the HUD
+        hud.draw(lander) # Draw the HUD
 
     # ----------
     # End Game Message
@@ -467,10 +401,7 @@ while running: # Main game loop
         thrust_sound.stop() # Stop thrust sound if it was playing
 
         if lander.landed:
-            if active_level.is_tutorial:
-                msg = font.render("TUTORIAL COMPLETE!", True, GREEN)
-            else:
-                msg = font.render("SAFE LANDING!", True, GREEN)
+            msg = font.render("SAFE LANDING!", True, GREEN)
         else:
             msg = font.render("CRASHED!", True, RED)
 
