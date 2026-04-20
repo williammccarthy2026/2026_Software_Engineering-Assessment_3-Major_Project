@@ -54,6 +54,36 @@ START_FUEL = 500 # starting amount of fuel
 SAFE_SPEED = 3 # maximum safe landing speed
 
 # ----------------------------------------
+# Level Settings
+# ----------------------------------------
+LEVELS = {
+    "TUTORIAL": {
+        "background": "Tutorial_Background.png",
+        "ground": "Tutorial_Ground.png"
+    },
+    "LEVEL_1": {
+        "background": "Level_1_Background.png",
+        "ground": "Level_1_Ground.png"
+    },
+    "LEVEL_2": {
+        "background": "Level_2_Background.png",
+        "ground": "Level_2_Ground.png"
+    },
+    "LEVEL_3": {
+        "background": "Level_3_Background.png",
+        "ground": "Level_3_Ground.png"
+    },
+    "LEVEL_4": {
+        "background": "Level_4_Background.png",
+        "ground": "Level_4_Ground.png"
+    },
+    "LEVEL_5": {
+        "background": "Level_5_Background.png",
+        "ground": "Level_5_Ground.png"
+    }
+}
+
+# ----------------------------------------
 # Colours
 # ----------------------------------------
 SKY = (255, 150, 100)
@@ -79,8 +109,14 @@ font = pygame.font.Font(None, 50) # font for on-screen text
 # Load background image
 menu_screen = pygame.image.load("menu_screen.png").convert() # Load menu background image
 menu_screen = pygame.transform.scale(menu_screen, (WIDTH, HEIGHT)) # Scale menu background to fit screen
-background_image = pygame.image.load("Level_1_Background.png").convert()
-background_image = pygame.transform.scale(background_image, (WIDTH, HEIGHT))
+def load_level_background(level_name): # Load the background image for the specified level
+    level_data = LEVELS.get(level_name, LEVELS["LEVEL_1"])
+    background_file = level_data["background"]
+
+    image = pygame.image.load(background_file).convert()
+    return pygame.transform.scale(image, (WIDTH, HEIGHT))
+
+background_image = load_level_background("LEVEL_1")
 
 # Load Sound Effects
 thrust_sound = pygame.mixer.Sound("lander_thrust.mp3") # Load thrust sound effect
@@ -293,9 +329,14 @@ class Lander:
 # Ground class
 # ----------------------------------------
 class Ground:
-    def __init__(self):
+    def __init__(self, level_name="LEVEL_1"):
+        level_data = LEVELS.get(level_name, LEVELS["LEVEL_1"])
+        ground_file = level_data["ground"]
+
+        if not os.path.exists(ground_file):
+            ground_file = LEVELS["LEVEL_1"]["ground"] # Fallback ground for missing level files
         # Load the ground image
-        self.image = pygame.image.load("Level_1_Ground.png").convert_alpha()
+        self.image = pygame.image.load(ground_file).convert_alpha()
         # Scale it to fit the width of the screen and the height you want
         self.image = pygame.transform.scale(self.image, (WIDTH, 50))
         # Position the ground at the bottom of the screen
@@ -305,7 +346,7 @@ class Ground:
         screen.blit(self.image, self.rect)
         # Optional: keep landing pad rectangle
         pygame.draw.rect(screen, WHITE, (WIDTH//2-100, HEIGHT-55, 200, 10))      
-        
+
 # ----------------------------------------
 # HUD Class
 # ----------------------------------------
@@ -325,8 +366,17 @@ class HUD:
 # ----------------------------------------
 # Game Objects
 # ----------------------------------------
+def start_level(level_name):
+    global lander, ground, background_image, game_state, current_level
+    current_level = level_name
+    lander = Lander()
+    ground = Ground(level_name)
+    background_image = load_level_background(level_name)
+    game_state = PLAYING
+
 lander = None # Lander
-ground = Ground() # Mars ground
+current_level = "LEVEL_1"
+ground = Ground(current_level) # Mars ground
 hud = HUD() # Information display
 menu = Menu() # Start menu
 
@@ -355,8 +405,7 @@ while running: # Main game loop
                 running = False # Quit game if Q is pressed
 
             if event.key == pygame.K_r:
-                lander = Lander()
-                game_state = PLAYING # Restart game if R is pressed
+                start_level(current_level) # Restart current level if R is pressed
 
             if event.key ==pygame.K_p and game_state == PLAYING:
                 game_state = PAUSED # Pause game if P is pressed
@@ -367,8 +416,10 @@ while running: # Main game loop
             result = menu.handle_event(event)
 
             if result == "BEGIN":
-                lander = Lander()
-                game_state = PLAYING
+                 start_level("LEVEL_1")
+
+            if result == "TUTORIAL":
+                start_level("TUTORIAL")
 
             if result == "EXIT":
                 running = False
