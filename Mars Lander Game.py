@@ -62,7 +62,7 @@ GROUND = (200, 80, 30)
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
 BLACK = (0, 0, 0)
-EMERALD = (21, 119, 40)
+ORANGE = (204, 102, 0)
 GREY = (107, 107, 107)
 RED = (255, 0, 0)
 
@@ -110,7 +110,7 @@ class Button:
         self.hovered_last_frame = hovered
 
         if hovered: # Change button appearance when hovered
-            fill_colour = EMERALD
+            fill_colour = ORANGE
             outline_colour = BLACK
             text_colour = BLACK
         else: # Normal button appearance
@@ -201,11 +201,11 @@ class Lander:
         # --------------------
         # Loading and setting up images
         # --------------------
-        self.base_image = pygame.image.load("lander.png").convert_alpha() # Loads lander image
-        self.booster_image = pygame.image.load("lander_(boosterv1).png").convert_alpha() # Loads booster image
-        self.boosterL_image = pygame.image.load("lander_(boosterL).png").convert_alpha() # Loads left booster image
-        self.boosterR_image = pygame.image.load("lander_(boosterR).png").convert_alpha() # Loads right booster image
-        self.crash_image = pygame.image.load("explosion3.png").convert_alpha() # Loads crash image
+        self.base_image = pygame.image.load("Lander.png").convert_alpha() # Loads lander image
+        self.booster_image = pygame.image.load("Lander_Booster.png").convert_alpha() # Loads booster image
+        self.boosterL_image = pygame.image.load("Lander_Booster_L.png").convert_alpha() # Loads left booster image
+        self.boosterR_image = pygame.image.load("Lander_Booster_R.png").convert_alpha() # Loads right booster image
+        self.crash_image = pygame.image.load("Lander_Explosion.png").convert_alpha() # Loads crash image
 
         self.image = self.base_image
         self.rect = self.image.get_rect(center=(self.x, self.y)) # Centers lander image on rectangle for positioning
