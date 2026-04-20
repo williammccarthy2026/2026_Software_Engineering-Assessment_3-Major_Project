@@ -364,14 +364,73 @@ class HUD:
             screen.blit(msg, (20, 20 + i*50))
 
 # ----------------------------------------
+# Tutorial Guide Class
+# ----------------------------------------
+class TutorialGuide:
+    def __init__(self):
+        self.title_font = pygame.font.Font(None, 48)
+        self.text_font = pygame.font.Font(None, 34)
+        self.tip_colour = (20, 20, 20)
+        self.box_colour = (255, 255, 255)
+
+    def get_steps(self, lander):
+        low_altitude = (HEIGHT - 100 - lander.y) < 220
+
+        return [
+            {
+                "title": "Tutorial: Turning",
+                "tip": "Use LEFT and RIGHT to tilt the lander.",
+                "done": abs(lander.angle) >= 20
+            },
+            {
+                "title": "Tutorial: Boosting",
+                "tip": "Hold SPACE to fire the booster and slow your fall.",
+                "done": lander.fuel < START_FUEL - 20
+            },
+            {
+                "title": "Tutorial: Final Approach",
+                "tip": "Stay upright and land gently on the pad.",
+                "done": low_altitude
+            },
+        ]
+
+    def draw(self, lander):
+        if not lander.alive or lander.landed:
+            return
+
+        steps = self.get_steps(lander)
+        active_step = None
+        for step in steps:
+            if not step["done"]:
+                active_step = step
+                break
+
+        if active_step is None:
+            active_step = {
+                "title": "Tutorial Complete",
+                "tip": "Great work! Finish the landing to continue.",
+                "done": True
+            }
+
+        panel = pygame.Rect(120, 20, WIDTH - 240, 90)
+        pygame.draw.rect(screen, self.box_colour, panel, border_radius=12)
+        pygame.draw.rect(screen, BLACK, panel, 3, border_radius=12)
+
+        title_text = self.title_font.render(active_step["title"], True, self.tip_colour)
+        tip_text = self.text_font.render(active_step["tip"], True, self.tip_colour)
+        screen.blit(title_text, (panel.x + 20, panel.y + 12))
+        screen.blit(tip_text, (panel.x + 20, panel.y + 52))
+
+# ----------------------------------------
 # Game Objects
 # ----------------------------------------
 def start_level(level_name):
-    global lander, ground, background_image, game_state, current_level
+    global lander, ground, background_image, game_state, current_level, tutorial_guide
     current_level = level_name
     lander = Lander()
     ground = Ground(level_name)
     background_image = load_level_background(level_name)
+    tutorial_guide = TutorialGuide() if level_name == "TUTORIAL" else None
     game_state = PLAYING
 
 lander = None # Lander
@@ -379,6 +438,7 @@ current_level = "LEVEL_1"
 ground = Ground(current_level) # Mars ground
 hud = HUD() # Information display
 menu = Menu() # Start menu
+tutorial_guide = None
 
 # ----------------------------------------
 # Game State   
@@ -443,6 +503,8 @@ while running: # Main game loop
     else:
         lander.draw() # Draw the lander
         hud.draw(lander) # Draw the HUD
+        if tutorial_guide is not None and current_level == "TUTORIAL":
+            tutorial_guide.draw(lander)
 
     # ----------
     # End Game Message
