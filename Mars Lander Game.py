@@ -334,21 +334,29 @@ class Lander:
         # --------------------
         ground_top = HEIGHT - 50
         collision_rect = self.get_collision_rect()
-        if collision_rect.bottom >= ground_top:
-            penetration = collision_rect.bottom - ground_top
+        over_landing_pad = False
+        landing_surface_top = ground_top
+        if landing_pad_rect is not None:
+            over_landing_pad = (
+                landing_pad_rect.left <= collision_rect.centerx <= landing_pad_rect.right
+            )
+            if over_landing_pad:
+                landing_surface_top = min(ground_top, landing_pad_rect.top)
+
+        if collision_rect.bottom >= landing_surface_top:
+            penetration = collision_rect.bottom - landing_surface_top
             self.y -= penetration
             self.rect = self.image.get_rect(center=(self.x, self.y))
             collision_rect = self.get_collision_rect()
-            on_landing_pad = True
-            if landing_pad_rect is not None: # Check if the collision rectangle is within the landing pad area, allowing for a small margin of error
-                on_landing_pad = (
-                    landing_pad_rect.left <= collision_rect.centerx <= landing_pad_rect.right
-                    and collision_rect.bottom <= landing_pad_rect.bottom + 2
-                )
-
-            if on_landing_pad and abs(self.speed_y) <= SAFE_SPEED and abs(self.angle) <= 12:
+            on_landing_pad = (
+                landing_pad_rect is not None
+                and over_landing_pad
+                and abs(collision_rect.bottom - landing_pad_rect.top) <= 2
+            )
+            if on_landing_pad and abs(self.speed_y) <= SAFE_SPEED and abs(self.angle) <= 12: # Check for safe landing conditions
                 self.landed = True
-            else:
+
+            else: # If not landed safely, it's a crash
                 self.alive = False
                 crash_rotated = pygame.transform.rotate(self.crash_image, self.angle)
                 self.image = crash_rotated
