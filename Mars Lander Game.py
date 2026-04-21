@@ -255,6 +255,11 @@ class Lander:
         width = int(image.get_width() * LANDER_SCALE)
         height = int(image.get_height() * LANDER_SCALE)
         return pygame.transform.smoothscale(image, (width, height))
+    
+    def get_collision_rect(self): # Get a smaller collision rectangle for more forgiving landing and crash detection
+        collision_rect = self.rect.inflate(-self.rect.width * 0.45, -self.rect.height * 0.35)
+        collision_rect.y += int(self.rect.height * 0.12) # bias collision zone toward landing legs
+        return collision_rect
 
     # --------------------
     # Tracking lander position
@@ -327,12 +332,19 @@ class Lander:
         # --------------------
         # Landing and crash detection
         # --------------------
-        if self.y > HEIGHT - 100:
-            self.y = HEIGHT - 100
-            self.rect.center = (self.x, self.y)
+        ground_top = HEIGHT - 50
+        collision_rect = self.get_collision_rect()
+        if collision_rect.bottom >= ground_top:
+            penetration = collision_rect.bottom - ground_top
+            self.y -= penetration
+            self.rect = self.image.get_rect(center=(self.x, self.y))
+            collision_rect = self.get_collision_rect()
             on_landing_pad = True
-            if landing_pad_rect is not None:
-                on_landing_pad = landing_pad_rect.collidepoint(self.rect.centerx, landing_pad_rect.centery) # Check if the lander is within the landing pad area
+            if landing_pad_rect is not None: # Check if the collision rectangle is within the landing pad area, allowing for a small margin of error
+                on_landing_pad = (
+                    landing_pad_rect.left <= collision_rect.centerx <= landing_pad_rect.right
+                    and collision_rect.bottom <= landing_pad_rect.bottom + 2
+                )
 
             if on_landing_pad and abs(self.speed_y) <= SAFE_SPEED and abs(self.angle) <= 12:
                 self.landed = True
@@ -495,16 +507,7 @@ def get_zoom(lander, landing_pad_rect):
     pad_center_y = landing_pad_rect.centery
     distance = math.hypot(lander.x - pad_center_x, lander.y - pad_center_y)
 
-    if distance <= ZOOM_NEAR_DISTANCE:
-        return MAX_ZOOM
-    if distance >= ZOOM_FAR_DISTANCE:
-        return MIN_ZOOM
-
-    distance_range = ZOOM_FAR_DISTANCE - ZOOM_NEAR_DISTANCE
-    zoom_range = MAX_ZOOM - MIN_ZOOM
-    zoom_progress = (ZOOM_FAR_DISTANCE - distance) / distance_range
-    return MIN_ZOOM + zoom_progress * zoom_range
-
+    return MAX_ZOOM if distance <= ZOOM_NEAR_DISTANCE else MIN_ZOOM # Zoom in when close to landing pad, zoom out when far away
 
 def draw_zoomed_scene(scene_surface, zoom, focus_x, focus_y):
     if zoom <= 1.0:
@@ -623,15 +626,17 @@ while running: # Main game loop
         scene_surface.blit(background_image, (0, 0)) # Draw background image
         ground.draw(scene_surface) # Draw the ground
         lander.draw(scene_surface) # Draw the lander
-        if current_level != "TUTORIAL":
-            hud.draw(lander, scene_surface) # Draw the HUD
-        if tutorial_guide is not None and current_level == "TUTORIAL":
-            tutorial_guide.draw(lander, scene_surface)
 
         camera_zoom = get_zoom(lander, ground.landing_pad_rect)
         camera_focus_x = (lander.x + ground.landing_pad_rect.centerx) / 2
         camera_focus_y = (lander.y + ground.landing_pad_rect.centery) / 2
         draw_zoomed_scene(scene_surface, camera_zoom, camera_focus_x, camera_focus_y)
+
+        hud_hidden_for_zoom = camera_zoom > MIN_ZOOM # Hide HUD when zoomed in to prevent clutter and maintain focus on landing
+        if current_level != "TUTORIAL" and not hud_hidden_for_zoom:
+            hud.draw(lander, screen) # Draw HUD only when unzoomed
+        if tutorial_guide is not None and current_level == "TUTORIAL" and not hud_hidden_for_zoom:
+            tutorial_guide.draw(lander, screen)
 
         # ----------
         # End Game Message
@@ -651,7 +656,7 @@ while running: # Main game loop
             quit_msg = font.render("Press Q to quit, R to restart, or M for menu", True, WHITE) # Instructions for quitting, restarting, or returning to menu
             quit_rect = quit_msg.get_rect(center=(WIDTH//2, HEIGHT//2 + 20)) # Center the instructions on the screen
             screen.blit(quit_msg, quit_rect) # Draw the instructions on the screen
-            
+
     clock.tick(60) # Limit to 60 frames per second
     pygame.display.flip() # Update the display
 
