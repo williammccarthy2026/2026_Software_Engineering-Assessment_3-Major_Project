@@ -11,9 +11,6 @@ import datetime
 # ----------------------------------------
 # Backup Procedures
 # ----------------------------------------
-# Define the source and backup directories
-# Use project-relative defaults and fail gracefully if backup cannot run.
-
 SOURCE_FOLDER = os.path.dirname(os.path.abspath(__file__)) # Backup the current project folder by default
 BACKUP_FOLDER = os.path.join(os.path.dirname(SOURCE_FOLDER), "Mars_Lander_Backups") # Keep backups outside source folder
 
@@ -22,12 +19,10 @@ def create_backup():
         print(f"Backup skipped: source folder not found: {SOURCE_FOLDER}")
         return
 
-    # Generate a timestamp to create a unique backup folder
-    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") # Format: YYYY-MM-DD_HH-MM-SS
-    backup_path = os.path.join(BACKUP_FOLDER, f"Assessment_3_Backup_{timestamp}")
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S") # Create a timestamp for the backup folder name
+    backup_path = os.path.join(BACKUP_FOLDER, f"Assessment_3_Backup_{timestamp}") # Create a unique backup folder name using the timestamp
 
     try:
-        # Ensure the backup directory exists; create it if it doesn't
         os.makedirs(backup_path, exist_ok=True) # `exist_ok=True` prevents errors if the folder already exists
         shutil.copytree(SOURCE_FOLDER, backup_path, dirs_exist_ok=True) # Copy all files from source to backup
         print(f"Backup completed successfully! Files saved in: {backup_path}")
@@ -35,6 +30,7 @@ def create_backup():
         print(f"Backup skipped due to filesystem error: {err}")
 
 create_backup()
+
 # ----------------------------------------
 # Game States
 # ----------------------------------------
@@ -56,14 +52,18 @@ SAFE_SPEED = 3 # maximum safe landing speed
 # ----------------------------------------
 # Level Settings
 # ----------------------------------------
-LEVELS = {
+LEVELS = { # Define the settings for each level, including background and ground images, and landing pad position for the tutorial
     "TUTORIAL": {
         "background": "Tutorial_Background.png",
-        "ground": "Tutorial_Ground.png"
+        "ground": "Tutorial_Ground.png",
+        "landing_pad": {"x": WIDTH//2 - 100, "y": HEIGHT - 55, "width": 200, "height": 10}
+
     },
     "LEVEL_1": {
         "background": "Level_1_Background.png",
-        "ground": "Level_1_Ground.png"
+        "ground": "Level_1_Ground.png",
+        "landing_pad": {"x": WIDTH//2 - 100, "y": HEIGHT - 55, "width": 200, "height": 10}
+
     },
     "LEVEL_2": {
         "background": "Level_2_Background.png",
@@ -249,9 +249,7 @@ class Lander:
     # --------------------
     # Tracking lander position
     # --------------------
-    def update(self, gravity_scale=1.0, freeze_descent=False):
-        if not self.alive: # tracks landers state
-            return
+    def update(self, gravity_scale=1.0, freeze_descent=False, landing_pad_rect=None):
         
         if freeze_descent:
             if self.thrust_sound_playing:
@@ -322,7 +320,11 @@ class Lander:
         if self.y > HEIGHT - 100:
             self.y = HEIGHT - 100
             self.rect.center = (self.x, self.y)
-            if abs(self.speed_y) <= SAFE_SPEED and abs(self.angle) <= 12:
+            on_landing_pad = True
+            if landing_pad_rect is not None:
+                on_landing_pad = landing_pad_rect.collidepoint(self.rect.centerx, landing_pad_rect.centery) # Check if the lander is within the landing pad area
+
+            if on_landing_pad and abs(self.speed_y) <= SAFE_SPEED and abs(self.angle) <= 12:
                 self.landed = True
             else:
                 self.alive = False
@@ -342,6 +344,7 @@ class Ground:
     def __init__(self, level_name="LEVEL_1"):
         level_data = LEVELS.get(level_name, LEVELS["LEVEL_1"])
         ground_file = level_data["ground"]
+        pad_data = level_data.get("landing_pad", LEVELS["LEVEL_1"]["landing_pad"])
 
         if not os.path.exists(ground_file):
             ground_file = LEVELS["LEVEL_1"]["ground"] # Fallback ground for missing level files
@@ -351,11 +354,16 @@ class Ground:
         self.image = pygame.transform.scale(self.image, (WIDTH, 50))
         # Position the ground at the bottom of the screen
         self.rect = self.image.get_rect(topleft=(0, HEIGHT-50))
+        self.landing_pad_rect = pygame.Rect(
+            pad_data["x"],
+            pad_data["y"],
+            pad_data["width"],
+            pad_data["height"]
+        )
 
     def draw(self):
         screen.blit(self.image, self.rect)
-        # Optional: keep landing pad rectangle
-        pygame.draw.rect(screen, WHITE, (WIDTH//2-100, HEIGHT-55, 200, 10))      
+        pygame.draw.rect(screen, WHITE, self.landing_pad_rect) # Draw the landing pad as a white rectangle on top of the ground      
 
 # ----------------------------------------
 # HUD Class
@@ -376,7 +384,7 @@ class HUD:
 # ----------------------------------------
 # Tutorial Guide Class
 # ----------------------------------------
-class TutorialGuide:
+class TutorialGuide: # Provides on-screen instructions and controls the tutorial flow
     def __init__(self):
         self.title_font = pygame.font.Font(None, 48)
         self.text_font = pygame.font.Font(None, 34)
@@ -388,24 +396,24 @@ class TutorialGuide:
         self.current_step_index = None
         self.completed_steps = set()
 
-    def get_steps(self, lander):
+    def get_steps(self, lander): # Define the tutorial steps and their completion conditions
             return [
                 {
                     "title": "Use Main Thruster",
                     "tip": "Hold SPACE to fire the main thruster.",
-                    "done": lander.fuel < START_FUEL
+                    "done": lander.fuel < START_FUEL # Check if fuel has been used, indicating the main thruster has been fired
                 },
                 {
                     "title": "Learn to Turn",
                     "tip": "Use LEFT and RIGHT arrows to rotate the lander.",
-                    "done": abs(lander.angle) > 0
+                    "done": abs(lander.angle) > 0 # Check if the lander has been rotated, indicating the turn controls have been used
                 }
             ]
 
-    def get_step_states(self, lander):
+    def get_step_states(self, lander): # Get the current state of each tutorial step, marking them as done if their conditions are met or if they were previously completed
         steps = self.get_steps(lander)
         states = []
-        for index, step in enumerate(steps):
+        for index, step in enumerate(steps): # Mark steps as done if their conditions are met or if they were previously completed
             done = step["done"] or index in self.completed_steps
             states.append({"title": step["title"], "tip": step["tip"], "done": done})
         return states
@@ -542,7 +550,8 @@ while running: # Main game loop
 
         lander.update(
             gravity_scale=tutorial_settings["gravity_scale"],
-            freeze_descent=tutorial_settings["freeze_descent"]
+            freeze_descent=tutorial_settings["freeze_descent"],
+            landing_pad_rect=ground.landing_pad_rect
         ) # Update lander position and state
 
         if lander.landed or not lander.alive: # Check for landing/crash
