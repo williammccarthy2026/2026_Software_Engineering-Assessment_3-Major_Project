@@ -13,6 +13,7 @@ import datetime
 # ----------------------------------------
 SOURCE_FOLDER = os.path.dirname(os.path.abspath(__file__)) # Backup the current project folder by default
 BACKUP_FOLDER = os.path.join(os.path.dirname(SOURCE_FOLDER), "Mars_Lander_Backups") # Keep backups outside source folder
+ASSET_DIR = SOURCE_FOLDER
 
 def create_backup():
     if not os.path.isdir(SOURCE_FOLDER):
@@ -114,26 +115,36 @@ pygame.display.set_caption("Mars Lander") # window title
 clock = pygame.time.Clock() # control frame rate
 font = pygame.font.Font(None, 50) # font for on-screen text
 
+def get_asset_path(filename):
+    return os.path.join(ASSET_DIR, filename)
+
+def load_image(filename, with_alpha=False):
+    image = pygame.image.load(get_asset_path(filename))
+    return image.convert_alpha() if with_alpha else image.convert()
+
+def load_sound(filename):
+    return pygame.mixer.Sound(get_asset_path(filename))
+
 # Load background image
-menu_screen = pygame.image.load("menu_screen.png").convert() # Load menu background image
+menu_screen = load_image("menu_screen.png") # Load menu background image
 menu_screen = pygame.transform.scale(menu_screen, (WIDTH, HEIGHT)) # Scale menu background to fit screen
 def load_level_background(level_name): # Load the background image for the specified level
     level_data = LEVELS.get(level_name, LEVELS["LEVEL_1"])
     background_file = level_data["background"]
 
-    if not os.path.exists(background_file):
+    if not os.path.exists(get_asset_path(background_file)):
         background_file = LEVELS["LEVEL_1"]["background"] # Fallback background for missing level files
-    image = pygame.image.load(background_file).convert()
+    image = load_image(background_file)
     return pygame.transform.scale(image, (WIDTH, HEIGHT))
 
 background_image = load_level_background("LEVEL_1")
 
 # Load Sound Effects
-thrust_sound = pygame.mixer.Sound("lander_thrust.mp3") # Load thrust sound effect
+thrust_sound = load_sound("lander_thrust.mp3") # Load thrust sound effect
 thrust_sound.set_volume(0.5)
-explosion_sound = pygame.mixer.Sound("lander_explode.wav")
-menu_button_hover = pygame.mixer.Sound("menu_button_hover.wav")
-menu_button_accept = pygame.mixer.Sound("menu_button_accept.wav")
+explosion_sound = load_sound("lander_explode.wav")
+menu_button_hover = load_sound("menu_button_hover.wav")
+menu_button_accept = load_sound("menu_button_accept.wav")
 menu_button_accept.set_volume(0.06)
 
 # ----------------------------------------
@@ -247,11 +258,11 @@ class Lander:
         # --------------------
         # Loading and setting up images
         # --------------------
-        self.base_image = self.scale_lander_image(pygame.image.load("Lander.png").convert_alpha()) # Loads lander image
-        self.booster_image = self.scale_lander_image(pygame.image.load("Lander_Booster.png").convert_alpha()) # Loads booster image
-        self.boosterL_image = self.scale_lander_image(pygame.image.load("Lander_Booster_L.png").convert_alpha()) # Loads left booster image
-        self.boosterR_image = self.scale_lander_image(pygame.image.load("Lander_Booster_R.png").convert_alpha()) # Loads right booster image
-        self.crash_image = self.scale_lander_image(pygame.image.load("Lander_Explosion.png").convert_alpha()) # Loads crash image
+        self.base_image = self.scale_lander_image(load_image("lander.png", with_alpha=True)) # Loads lander image
+        self.booster_image = self.scale_lander_image(load_image("Lander_Booster.png", with_alpha=True)) # Loads booster image
+        self.boosterL_image = self.scale_lander_image(load_image("Lander_Booster_L.png", with_alpha=True)) # Loads left booster image
+        self.boosterR_image = self.scale_lander_image(load_image("Lander_Booster_R.png", with_alpha=True)) # Loads right booster image
+        self.crash_image = self.scale_lander_image(load_image("Lander_Explosion.png", with_alpha=True)) # Loads crash image
 
         self.image = self.base_image
         self.rect = self.image.get_rect(center=(self.x, self.y)) # Centers lander image on rectangle for positioning
@@ -382,7 +393,7 @@ class Ground:
         self.ground_colour = level_data.get("ground_colour", GROUND)
         self.ground_profile = [HEIGHT - 50] * WIDTH
 
-        if ground_file and not os.path.exists(ground_file):
+        if ground_file and not os.path.exists(get_asset_path(ground_file)):
             ground_file = LEVELS["LEVEL_1"]["ground"] # Fallback ground for missing level files
         self.landing_pad_rect = pygame.Rect(
             pad_data["x"],
@@ -396,9 +407,11 @@ class Ground:
         self.image = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
 
         if ground_file:
-            raw_ground = pygame.image.load(ground_file).convert_alpha()
-            scaled_ground = pygame.transform.smoothscale(raw_ground, (WIDTH, HEIGHT))
-            self.image.blit(scaled_ground, (0, 0))
+            raw_ground = load_image(ground_file, with_alpha=True)
+            target_height = min(raw_ground.get_height(), HEIGHT)
+            scaled_ground = pygame.transform.smoothscale(raw_ground, (WIDTH, target_height))
+            blit_y = HEIGHT - target_height
+            self.image.blit(scaled_ground, (0, blit_y))
             self._build_profile_from_alpha(self.image)
         elif self.terrain_type == "BUMPY":
             self._build_bumpy_profile()
