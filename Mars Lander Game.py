@@ -72,7 +72,10 @@ LEVELS = { # Define the settings for each level, including background and ground
     },
     "LEVEL_2": {
         "background": "Level_2_Background.png",
-        "ground": "Level_2_Ground.png"
+        "ground": None,
+        "ground_colour": (132, 70, 38),
+        "terrain": "BUMPY",
+        "landing_pad": {"x": WIDTH//2 - 60, "y": HEIGHT - 70, "width": 120, "height": 8}
     },
     "LEVEL_3": {
         "background": "Level_3_Background.png",
@@ -118,6 +121,8 @@ def load_level_background(level_name): # Load the background image for the speci
     level_data = LEVELS.get(level_name, LEVELS["LEVEL_1"])
     background_file = level_data["background"]
 
+    if not os.path.exists(background_file):
+        background_file = LEVELS["LEVEL_1"]["background"] # Fallback background for missing level files
     image = pygame.image.load(background_file).convert()
     return pygame.transform.scale(image, (WIDTH, HEIGHT))
 
@@ -264,7 +269,7 @@ class Lander:
     # --------------------
     # Tracking lander position
     # --------------------
-    def update(self, gravity_scale=1.0, freeze_descent=False, landing_pad_rect=None):
+    def update(self, gravity_scale=1.0, freeze_descent=False, landing_pad_rect=None, surface_y_fn=None):
         
         if freeze_descent:
             if self.thrust_sound_playing:
@@ -332,16 +337,15 @@ class Lander:
         # --------------------
         # Landing and crash detection
         # --------------------
-        ground_top = HEIGHT - 50
         collision_rect = self.get_collision_rect()
         over_landing_pad = False
-        landing_surface_top = ground_top
+        landing_surface_top = surface_y_fn(collision_rect.centerx) if surface_y_fn is not None else HEIGHT - 50
         if landing_pad_rect is not None:
             over_landing_pad = (
                 landing_pad_rect.left <= collision_rect.centerx <= landing_pad_rect.right
             )
             if over_landing_pad:
-                landing_surface_top = min(ground_top, landing_pad_rect.top)
+                landing_surface_top = landing_pad_rect.top
 
         if collision_rect.bottom >= landing_surface_top:
             penetration = collision_rect.bottom - landing_surface_top
@@ -374,24 +378,74 @@ class Ground:
         level_data = LEVELS.get(level_name, LEVELS["LEVEL_1"])
         ground_file = level_data["ground"]
         pad_data = level_data.get("landing_pad", LEVELS["LEVEL_1"]["landing_pad"])
+        self.terrain_type = level_data.get("terrain", "FLAT")
+        self.ground_colour = level_data.get("ground_colour", GROUND)
+        self.ground_profile = [HEIGHT - 50] * WIDTH
 
-        if not os.path.exists(ground_file):
+        if ground_file and not os.path.exists(ground_file):
             ground_file = LEVELS["LEVEL_1"]["ground"] # Fallback ground for missing level files
-        # Load the ground image
-        self.image = pygame.image.load(ground_file).convert_alpha()
-        # Scale it to fit the width of the screen and the height you want
-        self.image = pygame.transform.scale(self.image, (WIDTH, 50))
-        # Position the ground at the bottom of the screen
-        self.rect = self.image.get_rect(topleft=(0, HEIGHT-50))
         self.landing_pad_rect = pygame.Rect(
             pad_data["x"],
             pad_data["y"],
             pad_data["width"],
             pad_data["height"]
         )
+        self._build_ground_surface(ground_file)
 
+    def _build_ground_surface(self, ground_file):
+        self.image = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+
+        if ground_file:
+            raw_ground = pygame.image.load(ground_file).convert_alpha()
+            scaled_ground = pygame.transform.smoothscale(raw_ground, (WIDTH, HEIGHT))
+            self.image.blit(scaled_ground, (0, 0))
+            self._build_profile_from_alpha(self.image)
+        elif self.terrain_type == "BUMPY":
+            self._build_bumpy_profile()
+            self._flatten_landing_pad_zone()
+            self._draw_profile_polygon()
+        else:
+            flat_top = HEIGHT - 50
+            self.ground_profile = [flat_top] * WIDTH
+            pygame.draw.rect(self.image, self.ground_colour, pygame.Rect(0, flat_top, WIDTH, HEIGHT - flat_top))
+
+    def _build_profile_from_alpha(self, image_surface):
+        self.ground_profile = [HEIGHT] * WIDTH
+        alpha_threshold = 10
+        for x in range(WIDTH):
+            top_y = HEIGHT
+            for y in range(HEIGHT):
+                if image_surface.get_at((x, y)).a > alpha_threshold:
+                    top_y = y
+                    break
+            self.ground_profile[x] = top_y
+
+    def _build_bumpy_profile(self):
+        base_height = HEIGHT - 95
+        self.ground_profile = []
+        for x in range(WIDTH):
+            wave_1 = math.sin(x * 0.015) * 20
+            wave_2 = math.sin(x * 0.043 + 1.4) * 10
+            wave_3 = math.sin(x * 0.083 + 0.3) * 5
+            y = int(base_height + wave_1 + wave_2 + wave_3)
+            y = max(HEIGHT - 145, min(HEIGHT - 55, y))
+            self.ground_profile.append(y)
+
+    def _flatten_landing_pad_zone(self):
+        start_x = max(0, self.landing_pad_rect.left - 30)
+        end_x = min(WIDTH - 1, self.landing_pad_rect.right + 30)
+        for x in range(start_x, end_x + 1):
+            self.ground_profile[x] = self.landing_pad_rect.top
+
+    def _draw_profile_polygon(self):
+        points = [(0, HEIGHT)] + [(x, self.ground_profile[x]) for x in range(WIDTH)] + [(WIDTH - 1, HEIGHT)]
+        pygame.draw.polygon(self.image, self.ground_colour, points)
+
+    def surface_y_at(self, x):
+        clamped_x = max(0, min(WIDTH - 1, int(x)))
+        return self.ground_profile[clamped_x]
     def draw(self, surface): # Draw the ground and landing pad
-        surface.blit(self.image, self.rect)
+        surface.blit(self.image, (0, 0))
         pygame.draw.rect(surface, WHITE, self.landing_pad_rect) # Draw the landing pad as a white rectangle on top of the ground      
 
 # ----------------------------------------
@@ -618,7 +672,8 @@ while running: # Main game loop
         lander.update(
             gravity_scale=tutorial_settings["gravity_scale"],
             freeze_descent=tutorial_settings["freeze_descent"],
-            landing_pad_rect=ground.landing_pad_rect
+            landing_pad_rect=ground.landing_pad_rect,
+            surface_y_fn=ground.surface_y_at
         ) # Update lander position and state
 
         if lander.landed or not lander.alive: # Check for landing/crash
