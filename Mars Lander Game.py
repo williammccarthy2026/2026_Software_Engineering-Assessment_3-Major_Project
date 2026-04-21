@@ -48,6 +48,11 @@ GRAVITY = 0.1 # how fast the lander falls
 THRUST = 0.25 # how strong the space key thrust is
 START_FUEL = 500 # starting amount of fuel
 SAFE_SPEED = 3 # maximum safe landing speed
+LANDER_SCALE = 0.45 # scale factor for the lander image size
+ZOOM_NEAR_DISTANCE = 180 # distance where camera reaches max zoom
+ZOOM_FAR_DISTANCE = 420 # distance where camera is fully zoomed out
+MIN_ZOOM = 1.0
+MAX_ZOOM = 1.8
 
 # ----------------------------------------
 # Level Settings
@@ -56,13 +61,13 @@ LEVELS = { # Define the settings for each level, including background and ground
     "TUTORIAL": {
         "background": "Tutorial_Background.png",
         "ground": "Tutorial_Ground.png",
-        "landing_pad": {"x": WIDTH//2 - 100, "y": HEIGHT - 55, "width": 200, "height": 10}
+        "landing_pad": {"x": WIDTH//2 - 60, "y": HEIGHT - 55, "width": 120, "height": 8}
 
     },
     "LEVEL_1": {
         "background": "Level_1_Background.png",
         "ground": "Level_1_Ground.png",
-        "landing_pad": {"x": WIDTH//2 - 100, "y": HEIGHT - 55, "width": 200, "height": 10}
+        "landing_pad": {"x": WIDTH//2 - 60, "y": HEIGHT - 55, "width": 120, "height": 8}
 
     },
     "LEVEL_2": {
@@ -237,14 +242,19 @@ class Lander:
         # --------------------
         # Loading and setting up images
         # --------------------
-        self.base_image = pygame.image.load("Lander.png").convert_alpha() # Loads lander image
-        self.booster_image = pygame.image.load("Lander_Booster.png").convert_alpha() # Loads booster image
-        self.boosterL_image = pygame.image.load("Lander_Booster_L.png").convert_alpha() # Loads left booster image
-        self.boosterR_image = pygame.image.load("Lander_Booster_R.png").convert_alpha() # Loads right booster image
-        self.crash_image = pygame.image.load("Lander_Explosion.png").convert_alpha() # Loads crash image
+        self.base_image = self.scale_lander_image(pygame.image.load("Lander.png").convert_alpha()) # Loads lander image
+        self.booster_image = self.scale_lander_image(pygame.image.load("Lander_Booster.png").convert_alpha()) # Loads booster image
+        self.boosterL_image = self.scale_lander_image(pygame.image.load("Lander_Booster_L.png").convert_alpha()) # Loads left booster image
+        self.boosterR_image = self.scale_lander_image(pygame.image.load("Lander_Booster_R.png").convert_alpha()) # Loads right booster image
+        self.crash_image = self.scale_lander_image(pygame.image.load("Lander_Explosion.png").convert_alpha()) # Loads crash image
 
         self.image = self.base_image
         self.rect = self.image.get_rect(center=(self.x, self.y)) # Centers lander image on rectangle for positioning
+
+    def scale_lander_image(self, image): # Scales the lander image based on the defined LANDER_SCALE factor
+        width = int(image.get_width() * LANDER_SCALE)
+        height = int(image.get_height() * LANDER_SCALE)
+        return pygame.transform.smoothscale(image, (width, height))
 
     # --------------------
     # Tracking lander position
@@ -333,9 +343,8 @@ class Lander:
                 self.rect = self.image.get_rect(center=(self.x, self.y))
                 explosion_sound.play()
 
-    def draw(self):
-        screen.blit(self.image, self.rect)#draw the spaceship image
-
+    def draw(self, surface):
+        surface.blit(self.image, self.rect)#draw the spaceship image at its current position and orientation
 
 # ----------------------------------------
 # Ground class
@@ -361,15 +370,15 @@ class Ground:
             pad_data["height"]
         )
 
-    def draw(self):
-        screen.blit(self.image, self.rect)
-        pygame.draw.rect(screen, WHITE, self.landing_pad_rect) # Draw the landing pad as a white rectangle on top of the ground      
+    def draw(self, surface): # Draw the ground and landing pad
+        surface.blit(self.image, self.rect)
+        pygame.draw.rect(surface, WHITE, self.landing_pad_rect) # Draw the landing pad as a white rectangle on top of the ground      
 
 # ----------------------------------------
 # HUD Class
 # ----------------------------------------
 class HUD:
-    def draw(self, lander):
+     def draw(self, lander, surface):
         altitude = HEIGHT - 100 - lander.y # distance above ground
         
         texts = [ # information to show
@@ -379,7 +388,7 @@ class HUD:
         
         for i, text in enumerate(texts): # display each line
             msg = font.render(text, True, WHITE)
-            screen.blit(msg, (20, 20 + i*50))
+            surface.blit(msg, (20, 20 + i*50))
 
 # ----------------------------------------
 # Tutorial Guide Class
@@ -446,7 +455,7 @@ class TutorialGuide: # Provides on-screen instructions and controls the tutorial
             freeze_descent = False
 
         return {"freeze_descent": freeze_descent, "gravity_scale": 0.5}
-    def draw(self, lander):
+    def draw(self, lander, surface):
         if not lander.alive or lander.landed:
             return
 
@@ -469,13 +478,50 @@ class TutorialGuide: # Provides on-screen instructions and controls the tutorial
             }
 
         panel = pygame.Rect(120, 20, WIDTH - 240, 90)
-        pygame.draw.rect(screen, self.box_colour, panel, border_radius=12)
-        pygame.draw.rect(screen, BLACK, panel, 3, border_radius=12)
+        pygame.draw.rect(surface, self.box_colour, panel, border_radius=12)
+        pygame.draw.rect(surface, BLACK, panel, 3, border_radius=12)
 
         title_text = self.title_font.render(active_step["title"], True, self.tip_colour)
         tip_text = self.text_font.render(active_step["tip"], True, self.tip_colour)
-        screen.blit(title_text, (panel.x + 20, panel.y + 12))
-        screen.blit(tip_text, (panel.x + 20, panel.y + 52))
+        surface.blit(title_text, (panel.x + 20, panel.y + 12))
+        surface.blit(tip_text, (panel.x + 20, panel.y + 52))
+
+
+# ----------------------------------------
+# Camera Zoom Functions
+# ----------------------------------------
+def get_zoom(lander, landing_pad_rect):
+    pad_center_x = landing_pad_rect.centerx
+    pad_center_y = landing_pad_rect.centery
+    distance = math.hypot(lander.x - pad_center_x, lander.y - pad_center_y)
+
+    if distance <= ZOOM_NEAR_DISTANCE:
+        return MAX_ZOOM
+    if distance >= ZOOM_FAR_DISTANCE:
+        return MIN_ZOOM
+
+    distance_range = ZOOM_FAR_DISTANCE - ZOOM_NEAR_DISTANCE
+    zoom_range = MAX_ZOOM - MIN_ZOOM
+    zoom_progress = (ZOOM_FAR_DISTANCE - distance) / distance_range
+    return MIN_ZOOM + zoom_progress * zoom_range
+
+
+def draw_zoomed_scene(scene_surface, zoom, focus_x, focus_y):
+    if zoom <= 1.0:
+        screen.blit(scene_surface, (0, 0))
+        return
+
+    scaled_width = int(WIDTH * zoom)
+    scaled_height = int(HEIGHT * zoom)
+    scaled_scene = pygame.transform.smoothscale(scene_surface, (scaled_width, scaled_height))
+
+    scaled_focus_x = focus_x * zoom
+    scaled_focus_y = focus_y * zoom
+
+    left = int(max(0, min(scaled_width - WIDTH, scaled_focus_x - WIDTH / 2)))
+    top = int(max(0, min(scaled_height - HEIGHT, scaled_focus_y - HEIGHT / 2)))
+
+    screen.blit(scaled_scene, (0, 0), area=pygame.Rect(left, top, WIDTH, HEIGHT))
 
 # ----------------------------------------
 # Game Objects
@@ -488,6 +534,12 @@ def start_level(level_name):
     background_image = load_level_background(level_name)
     tutorial_guide = TutorialGuide() if level_name == "TUTORIAL" else None
     game_state = PLAYING
+
+def return_to_menu():
+    global game_state, tutorial_guide
+    thrust_sound.stop()
+    tutorial_guide = None
+    game_state = MENU
 
 lander = None # Lander
 current_level = "LEVEL_1"
@@ -516,6 +568,10 @@ while running: # Main game loop
             running = False # Exit game if window is closed
 
         if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_m:
+                return_to_menu()
+                continue
+
 
             if event.key == pygame.K_q: 
                 running = False # Quit game if Q is pressed
@@ -560,36 +616,42 @@ while running: # Main game loop
     # ----------
     # Drawing Everything
     # ----------
-    screen.blit(background_image, (0, 0)) # Draw background image
-    ground.draw() # Draw the ground
     if game_state == MENU:
         menu.draw() # Draw the menu
     else:
-        lander.draw() # Draw the lander
+        scene_surface = pygame.Surface((WIDTH, HEIGHT))
+        scene_surface.blit(background_image, (0, 0)) # Draw background image
+        ground.draw(scene_surface) # Draw the ground
+        lander.draw(scene_surface) # Draw the lander
         if current_level != "TUTORIAL":
-            hud.draw(lander) # Draw the HUD
+            hud.draw(lander, scene_surface) # Draw the HUD
         if tutorial_guide is not None and current_level == "TUTORIAL":
-            tutorial_guide.draw(lander)
+            tutorial_guide.draw(lander, scene_surface)
 
-    # ----------
-    # End Game Message
-    # ----------
-    if game_state == ENDED: # Show end game message
+        camera_zoom = get_zoom(lander, ground.landing_pad_rect)
+        camera_focus_x = (lander.x + ground.landing_pad_rect.centerx) / 2
+        camera_focus_y = (lander.y + ground.landing_pad_rect.centery) / 2
+        draw_zoomed_scene(scene_surface, camera_zoom, camera_focus_x, camera_focus_y)
 
-        thrust_sound.stop() # Stop thrust sound if it was playing
+        # ----------
+        # End Game Message
+        # ----------
+        if game_state == ENDED: # Show end game message
 
-        if lander.landed:
-            msg = font.render("SAFE LANDING!", True, GREEN)
-        else:
-            msg = font.render("CRASHED!", True, RED)
+            thrust_sound.stop() # Stop thrust sound if it was playing
 
-        msg_rect = msg.get_rect(center=(WIDTH//2, HEIGHT//2 - 40)) # Center the message on the screen
-        screen.blit(msg, msg_rect) # Draw the message on the screen
+            if lander.landed:
+                msg = font.render("SAFE LANDING!", True, GREEN)
+            else:
+                msg = font.render("CRASHED!", True, RED)
 
-        quit_msg = font.render("Press Q to quit or R to restart", True, WHITE) # Instructions for quitting or restarting
-        quit_rect = quit_msg.get_rect(center=(WIDTH//2, HEIGHT//2 + 20)) # Center the instructions on the screen
-        screen.blit(quit_msg, quit_rect) # Draw the instructions on the screen
+            msg_rect = msg.get_rect(center=(WIDTH//2, HEIGHT//2 - 40)) # Center the message on the screen
+            screen.blit(msg, msg_rect) # Draw the message on the screen
 
+            quit_msg = font.render("Press Q to quit, R to restart, or M for menu", True, WHITE) # Instructions for quitting, restarting, or returning to menu
+            quit_rect = quit_msg.get_rect(center=(WIDTH//2, HEIGHT//2 + 20)) # Center the instructions on the screen
+            screen.blit(quit_msg, quit_rect) # Draw the instructions on the screen
+            
     clock.tick(60) # Limit to 60 frames per second
     pygame.display.flip() # Update the display
 
