@@ -13,7 +13,6 @@ import datetime
 # ----------------------------------------
 SOURCE_FOLDER = os.path.dirname(os.path.abspath(__file__)) # Backup the current project folder by default
 BACKUP_FOLDER = os.path.join(os.path.dirname(SOURCE_FOLDER), "Mars_Lander_Backups") # Keep backups outside source folder
-ASSET_DIR = SOURCE_FOLDER
 
 def create_backup():
     if not os.path.isdir(SOURCE_FOLDER):
@@ -72,25 +71,32 @@ LEVELS = { # Define the settings for each level, including background and ground
 
     },
     "LEVEL_2": {
-        "background": "Level_2_Background.png",
-        "ground": None,
-        "ground_colour": (132, 70, 38),
-        "terrain": "BUMPY",
-        "landing_pad": {"x": WIDTH//2 - 60, "y": HEIGHT - 70, "width": 120, "height": 8}
+        "background": "Level_1_Background.png",
+        "ground": "Level_1_Ground.png",
+        "landing_pad": {"x": WIDTH//2 - 60, "y": HEIGHT - 55, "width": 120, "height": 8}
     },
     "LEVEL_3": {
-        "background": "Level_3_Background.png",
-        "ground": "Level_3_Ground.png"
+       "background": "Level_1_Background.png",
+        "ground": "Level_1_Ground.png",
+        "landing_pad": {"x": WIDTH//2 - 60, "y": HEIGHT - 55, "width": 120, "height": 8}
     },
     "LEVEL_4": {
-        "background": "Level_4_Background.png",
-        "ground": "Level_4_Ground.png"
+        "background": "Level_1_Background.png",
+        "ground": "Level_1_Ground.png",
+        "landing_pad": {"x": WIDTH//2 - 60, "y": HEIGHT - 55, "width": 120, "height": 8}
     },
     "LEVEL_5": {
-        "background": "Level_5_Background.png",
-        "ground": "Level_5_Ground.png"
+       "background": "Level_1_Background.png",
+        "ground": "Level_1_Ground.png",
+        "landing_pad": {"x": WIDTH//2 - 60, "y": HEIGHT - 55, "width": 120, "height": 8}
     }
 }
+
+# ----------------------------------------
+# Level Progression System
+# ----------------------------------------
+LEVEL_ORDER = ["LEVEL_1", "LEVEL_2", "LEVEL_3", "LEVEL_4", "LEVEL_5"]  # Defines the order levels are played in
+current_level_index = 0  # Tracks which level the player is currently on
 
 # ----------------------------------------
 # Colours
@@ -115,36 +121,24 @@ pygame.display.set_caption("Mars Lander") # window title
 clock = pygame.time.Clock() # control frame rate
 font = pygame.font.Font(None, 50) # font for on-screen text
 
-def get_asset_path(filename):
-    return os.path.join(ASSET_DIR, filename)
-
-def load_image(filename, with_alpha=False):
-    image = pygame.image.load(get_asset_path(filename))
-    return image.convert_alpha() if with_alpha else image.convert()
-
-def load_sound(filename):
-    return pygame.mixer.Sound(get_asset_path(filename))
-
 # Load background image
-menu_screen = load_image("menu_screen.png") # Load menu background image
-menu_screen = pygame.transform.scale(menu_screen, (WIDTH, HEIGHT)) # Scale menu background to fit screen
+menu_background = pygame.image.load("Menu_Background.png").convert() # Load menu background image
+menu_background = pygame.transform.scale(menu_background, (WIDTH, HEIGHT)) # Scale menu background to fit screen
 def load_level_background(level_name): # Load the background image for the specified level
     level_data = LEVELS.get(level_name, LEVELS["LEVEL_1"])
     background_file = level_data["background"]
 
-    if not os.path.exists(get_asset_path(background_file)):
-        background_file = LEVELS["LEVEL_1"]["background"] # Fallback background for missing level files
-    image = load_image(background_file)
+    image = pygame.image.load(background_file).convert()
     return pygame.transform.scale(image, (WIDTH, HEIGHT))
 
 background_image = load_level_background("LEVEL_1")
 
 # Load Sound Effects
-thrust_sound = load_sound("lander_thrust.mp3") # Load thrust sound effect
+thrust_sound = pygame.mixer.Sound("lander_thrust.mp3") # Load thrust sound effect
 thrust_sound.set_volume(0.5)
-explosion_sound = load_sound("lander_explode.wav")
-menu_button_hover = load_sound("menu_button_hover.wav")
-menu_button_accept = load_sound("menu_button_accept.wav")
+explosion_sound = pygame.mixer.Sound("lander_explode.wav")
+menu_button_hover = pygame.mixer.Sound("menu_button_hover.wav")
+menu_button_accept = pygame.mixer.Sound("menu_button_accept.wav")
 menu_button_accept.set_volume(0.06)
 
 # ----------------------------------------
@@ -223,7 +217,7 @@ class Menu:
         screen.blit(label, label_rect)
 
     def draw(self):
-        screen.blit(menu_screen, (0,0))
+        screen.blit(menu_background, (0,0))
 
         # Draw buttons only (no title)
         for button in self.buttons:
@@ -258,11 +252,11 @@ class Lander:
         # --------------------
         # Loading and setting up images
         # --------------------
-        self.base_image = self.scale_lander_image(load_image("lander.png", with_alpha=True)) # Loads lander image
-        self.booster_image = self.scale_lander_image(load_image("Lander_Booster.png", with_alpha=True)) # Loads booster image
-        self.boosterL_image = self.scale_lander_image(load_image("Lander_Booster_L.png", with_alpha=True)) # Loads left booster image
-        self.boosterR_image = self.scale_lander_image(load_image("Lander_Booster_R.png", with_alpha=True)) # Loads right booster image
-        self.crash_image = self.scale_lander_image(load_image("Lander_Explosion.png", with_alpha=True)) # Loads crash image
+        self.base_image = self.scale_lander_image(pygame.image.load("Lander.png").convert_alpha()) # Loads lander image
+        self.booster_image = self.scale_lander_image(pygame.image.load("Lander_Booster.png").convert_alpha()) # Loads booster image
+        self.boosterL_image = self.scale_lander_image(pygame.image.load("Lander_Booster_L.png").convert_alpha()) # Loads left booster image
+        self.boosterR_image = self.scale_lander_image(pygame.image.load("Lander_Booster_R.png").convert_alpha()) # Loads right booster image
+        self.crash_image = self.scale_lander_image(pygame.image.load("Lander_Explosion.png").convert_alpha()) # Loads crash image
 
         self.image = self.base_image
         self.rect = self.image.get_rect(center=(self.x, self.y)) # Centers lander image on rectangle for positioning
@@ -280,7 +274,7 @@ class Lander:
     # --------------------
     # Tracking lander position
     # --------------------
-    def update(self, gravity_scale=1.0, freeze_descent=False, landing_pad_rect=None, surface_y_fn=None):
+    def update(self, gravity_scale=1.0, freeze_descent=False, landing_pad_rect=None):
         
         if freeze_descent:
             if self.thrust_sound_playing:
@@ -348,15 +342,16 @@ class Lander:
         # --------------------
         # Landing and crash detection
         # --------------------
+        ground_top = HEIGHT - 50
         collision_rect = self.get_collision_rect()
         over_landing_pad = False
-        landing_surface_top = surface_y_fn(collision_rect.centerx) if surface_y_fn is not None else HEIGHT - 50
+        landing_surface_top = ground_top
         if landing_pad_rect is not None:
             over_landing_pad = (
                 landing_pad_rect.left <= collision_rect.centerx <= landing_pad_rect.right
             )
             if over_landing_pad:
-                landing_surface_top = landing_pad_rect.top
+                landing_surface_top = min(ground_top, landing_pad_rect.top)
 
         if collision_rect.bottom >= landing_surface_top:
             penetration = collision_rect.bottom - landing_surface_top
@@ -389,76 +384,24 @@ class Ground:
         level_data = LEVELS.get(level_name, LEVELS["LEVEL_1"])
         ground_file = level_data["ground"]
         pad_data = level_data.get("landing_pad", LEVELS["LEVEL_1"]["landing_pad"])
-        self.terrain_type = level_data.get("terrain", "FLAT")
-        self.ground_colour = level_data.get("ground_colour", GROUND)
-        self.ground_profile = [HEIGHT - 50] * WIDTH
 
-        if ground_file and not os.path.exists(get_asset_path(ground_file)):
+        if not os.path.exists(ground_file):
             ground_file = LEVELS["LEVEL_1"]["ground"] # Fallback ground for missing level files
+        # Load the ground image
+        self.image = pygame.image.load(ground_file).convert_alpha()
+        # Scale it to fit the width of the screen and the height you want
+        self.image = pygame.transform.scale(self.image, (WIDTH, 50))
+        # Position the ground at the bottom of the screen
+        self.rect = self.image.get_rect(topleft=(0, HEIGHT-50))
         self.landing_pad_rect = pygame.Rect(
             pad_data["x"],
             pad_data["y"],
             pad_data["width"],
             pad_data["height"]
         )
-        self._build_ground_surface(ground_file)
 
-    def _build_ground_surface(self, ground_file):
-        self.image = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-
-        if ground_file:
-            raw_ground = load_image(ground_file, with_alpha=True)
-            target_height = min(raw_ground.get_height(), HEIGHT)
-            scaled_ground = pygame.transform.smoothscale(raw_ground, (WIDTH, target_height))
-            blit_y = HEIGHT - target_height
-            self.image.blit(scaled_ground, (0, blit_y))
-            self._build_profile_from_alpha(self.image)
-        elif self.terrain_type == "BUMPY":
-            self._build_bumpy_profile()
-            self._flatten_landing_pad_zone()
-            self._draw_profile_polygon()
-        else:
-            flat_top = HEIGHT - 50
-            self.ground_profile = [flat_top] * WIDTH
-            pygame.draw.rect(self.image, self.ground_colour, pygame.Rect(0, flat_top, WIDTH, HEIGHT - flat_top))
-
-    def _build_profile_from_alpha(self, image_surface):
-        self.ground_profile = [HEIGHT] * WIDTH
-        alpha_threshold = 10
-        for x in range(WIDTH):
-            top_y = HEIGHT
-            for y in range(HEIGHT):
-                if image_surface.get_at((x, y)).a > alpha_threshold:
-                    top_y = y
-                    break
-            self.ground_profile[x] = top_y
-
-    def _build_bumpy_profile(self):
-        base_height = HEIGHT - 95
-        self.ground_profile = []
-        for x in range(WIDTH):
-            wave_1 = math.sin(x * 0.015) * 20
-            wave_2 = math.sin(x * 0.043 + 1.4) * 10
-            wave_3 = math.sin(x * 0.083 + 0.3) * 5
-            y = int(base_height + wave_1 + wave_2 + wave_3)
-            y = max(HEIGHT - 145, min(HEIGHT - 55, y))
-            self.ground_profile.append(y)
-
-    def _flatten_landing_pad_zone(self):
-        start_x = max(0, self.landing_pad_rect.left - 30)
-        end_x = min(WIDTH - 1, self.landing_pad_rect.right + 30)
-        for x in range(start_x, end_x + 1):
-            self.ground_profile[x] = self.landing_pad_rect.top
-
-    def _draw_profile_polygon(self):
-        points = [(0, HEIGHT)] + [(x, self.ground_profile[x]) for x in range(WIDTH)] + [(WIDTH - 1, HEIGHT)]
-        pygame.draw.polygon(self.image, self.ground_colour, points)
-
-    def surface_y_at(self, x):
-        clamped_x = max(0, min(WIDTH - 1, int(x)))
-        return self.ground_profile[clamped_x]
     def draw(self, surface): # Draw the ground and landing pad
-        surface.blit(self.image, (0, 0))
+        surface.blit(self.image, self.rect)
         pygame.draw.rect(surface, WHITE, self.landing_pad_rect) # Draw the landing pad as a white rectangle on top of the ground      
 
 # ----------------------------------------
@@ -605,19 +548,37 @@ def draw_zoomed_scene(scene_surface, zoom, focus_x, focus_y):
 # Game Objects
 # ----------------------------------------
 def start_level(level_name):
-    global lander, ground, background_image, game_state, current_level, tutorial_guide
-    current_level = level_name
-    lander = Lander()
-    ground = Ground(level_name)
-    background_image = load_level_background(level_name)
-    tutorial_guide = TutorialGuide() if level_name == "TUTORIAL" else None
-    game_state = PLAYING
+    global lander, ground, background_image, game_state, current_level, tutorial_guide, current_level_index
+    
+    current_level = level_name  # Store current level name
+
+    # Update level index so the game knows which level we are on
+    if level_name in LEVEL_ORDER:
+        current_level_index = LEVEL_ORDER.index(level_name)
+
+    lander = Lander()  # Reset player
+    ground = Ground(level_name)  # Load level ground
+    background_image = load_level_background(level_name)  # Load background
+    tutorial_guide = TutorialGuide() if level_name == "TUTORIAL" else None  # Only enable tutorial if needed
+    game_state = PLAYING  # Start the level
 
 def return_to_menu():
     global game_state, tutorial_guide
     thrust_sound.stop()
     tutorial_guide = None
     game_state = MENU
+
+def go_to_next_level():
+    global current_level_index
+
+    # Check if there is another level after this one
+    if current_level_index < len(LEVEL_ORDER) - 1:
+        current_level_index += 1  # Move to next level
+        next_level = LEVEL_ORDER[current_level_index]
+        start_level(next_level)  # Start next level
+    else:
+        # If no more levels, go back to menu (you could add a win screen later)
+        return_to_menu()
 
 lander = None # Lander
 current_level = "LEVEL_1"
@@ -662,11 +623,16 @@ while running: # Main game loop
             elif event.key == pygame.K_p and game_state == PAUSED:
                 game_state = PLAYING # Unpause game if P is pressed again
 
+            if game_state == ENDED: # If level is finished and player landed safely, press SPACE to continue
+                if event.key == pygame.K_SPACE and lander.landed:
+                    go_to_next_level()
+
         if game_state == MENU:
             result = menu.handle_event(event)
 
             if result == "BEGIN":
-                 start_level("LEVEL_1")
+                current_level_index = 0  # Reset progression back to first level
+                start_level(LEVEL_ORDER[0])  # Start from LEVEL_1
 
             if result == "TUTORIAL":
                 start_level("TUTORIAL")
@@ -685,8 +651,7 @@ while running: # Main game loop
         lander.update(
             gravity_scale=tutorial_settings["gravity_scale"],
             freeze_descent=tutorial_settings["freeze_descent"],
-            landing_pad_rect=ground.landing_pad_rect,
-            surface_y_fn=ground.surface_y_at
+            landing_pad_rect=ground.landing_pad_rect
         ) # Update lander position and state
 
         if lander.landed or not lander.alive: # Check for landing/crash
@@ -729,9 +694,14 @@ while running: # Main game loop
             msg_rect = msg.get_rect(center=(WIDTH//2, HEIGHT//2 - 40)) # Center the message on the screen
             screen.blit(msg, msg_rect) # Draw the message on the screen
 
-            quit_msg = font.render("Press Q to quit, R to restart, or M for menu", True, WHITE) # Instructions for quitting, restarting, or returning to menu
-            quit_rect = quit_msg.get_rect(center=(WIDTH//2, HEIGHT//2 + 20)) # Center the instructions on the screen
-            screen.blit(quit_msg, quit_rect) # Draw the instructions on the screen
+            # Show different instructions depending on outcome
+            if lander.landed:
+                quit_msg = font.render("Press SPACE for next level, R to retry, M for menu, or Q to quit", True, WHITE)
+            else:
+                quit_msg = font.render("Press R to retry or M for menu", True, WHITE)
+
+            quit_rect = quit_msg.get_rect(center=(WIDTH//2, HEIGHT//2 + 20))
+            screen.blit(quit_msg, quit_rect)
 
     clock.tick(60) # Limit to 60 frames per second
     pygame.display.flip() # Update the display
