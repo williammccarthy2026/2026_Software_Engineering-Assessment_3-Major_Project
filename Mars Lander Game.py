@@ -129,6 +129,7 @@ LEVELS = {
 # ----------------------------------------
 LEVEL_ORDER = ["LEVEL_1", "LEVEL_2", "LEVEL_3", "LEVEL_4", "LEVEL_5"]  # Defines the order levels are played in
 current_level_index = 0  # Tracks which level the player is currently on
+completed_levels = set()  # Tracks which levels the player has completed
 
 def get_terrain_y(terrain_points, x):
     """Interpolate terrain height at a given x position."""
@@ -235,14 +236,15 @@ class Menu:
         self.margin_y = 50  # distance from bottom edge
 
         # Compute starting Y so buttons stack upwards from bottom-left
-        start_y = HEIGHT - self.margin_y - (self.button_height * 3 + self.spacing * 2)
+        start_y = HEIGHT - self.margin_y - (self.button_height * 4 + self.spacing * 3)
 
         # Button rectangles
         self.buttons = [
-        Button(self.margin_x, start_y, self.button_width, self.button_height, "Tutorial", "TUTORIAL"),
-        Button(self.margin_x, start_y + self.button_height + self.spacing, self.button_width, self.button_height, "Begin", "BEGIN"),
-        Button(self.margin_x, start_y + (self.button_height + self.spacing) * 2, self.button_width, self.button_height, "Exit", "EXIT")
-    ]
+            Button(self.margin_x, start_y, self.button_width, self.button_height, "Tutorial", "TUTORIAL"),
+            Button(self.margin_x, start_y + self.button_height + self.spacing, self.button_width, self.button_height, "Levels", "LEVELS"),
+            Button(self.margin_x, start_y + (self.button_height + self.spacing) * 2, self.button_width, self.button_height, "Begin", "BEGIN"),
+            Button(self.margin_x, start_y + (self.button_height + self.spacing) * 3, self.button_width, self.button_height, "Exit", "EXIT")
+        ]
 
     def draw_button(self, rect, text):
         mouse_pos = pygame.mouse.get_pos()
@@ -271,6 +273,139 @@ class Menu:
             if action:
                 menu_button_accept.play() # Play accept sound when a button is clicked
                 return action
+
+# ----------------------------------------
+# Level Scroller Class
+# ----------------------------------------
+class LevelScroller:
+    def __init__(self):
+        self.visible = False
+        self.card_width = 160
+        self.card_height = 100
+        self.card_spacing = 20
+        self.scroll_offset = 0  # how many pixels we've scrolled left
+        self.panel_rect = pygame.Rect(50, HEIGHT - 340, WIDTH - 100, 200)
+        self.title_font = pygame.font.Font(None, 38)
+        self.label_font = pygame.font.Font(None, 34)
+        self.scroll_speed = 18
+        self.hovered_card = None
+
+    def toggle(self):
+        self.visible = not self.visible
+
+    def _total_content_width(self):
+        return len(LEVEL_ORDER) * (self.card_width + self.card_spacing) - self.card_spacing
+
+    def _max_scroll(self):
+        visible_width = self.panel_rect.width - 40  # 20px padding each side
+        return max(0, self._total_content_width() - visible_width)
+
+    def _is_unlocked(self, level_name):
+        idx = LEVEL_ORDER.index(level_name)
+        if idx == 0:
+            return True  # first level always unlocked
+        return LEVEL_ORDER[idx - 1] in completed_levels
+
+    def draw(self, surface):
+        if not self.visible:
+            return
+
+        # Panel background
+        pygame.draw.rect(surface, (20, 20, 20), self.panel_rect, border_radius=14)
+        pygame.draw.rect(surface, GREY, self.panel_rect, 2, border_radius=14)
+
+        title = self.title_font.render("Select Level", True, WHITE)
+        surface.blit(title, (self.panel_rect.x + 20, self.panel_rect.y + 14))
+
+        # Clip cards to panel area
+        clip_rect = pygame.Rect(
+            self.panel_rect.x + 10,
+            self.panel_rect.y + 55,
+            self.panel_rect.width - 20,
+            self.card_height + 10
+        )
+        old_clip = surface.get_clip()
+        surface.set_clip(clip_rect)
+
+        self.hovered_card = None
+        mouse_pos = pygame.mouse.get_pos()
+
+        for i, level_name in enumerate(LEVEL_ORDER):
+            card_x = (self.panel_rect.x + 20) + i * (self.card_width + self.card_spacing) - self.scroll_offset
+            card_y = self.panel_rect.y + 58
+            card_rect = pygame.Rect(card_x, card_y, self.card_width, self.card_height)
+
+            unlocked = self._is_unlocked(level_name)
+            done = level_name in completed_levels
+            hovered = card_rect.collidepoint(mouse_pos) and unlocked and clip_rect.collidepoint(mouse_pos)
+
+            if hovered:
+                self.hovered_card = level_name
+
+            # Card colour
+            if done:
+                fill = (0, 120, 40) if not hovered else (0, 160, 55)
+            elif unlocked:
+                fill = (60, 60, 60) if not hovered else ORANGE
+            else:
+                fill = (30, 30, 30)  # locked
+
+            pygame.draw.rect(surface, fill, card_rect, border_radius=10)
+            pygame.draw.rect(surface, GREY if not hovered else WHITE, card_rect, 2, border_radius=10)
+
+            # Label
+            display = level_name.replace("LEVEL_", "Level ")
+            label = self.label_font.render(display, True, WHITE if unlocked else GREY)
+            label_rect = label.get_rect(center=(card_rect.centerx, card_rect.centery - 10))
+            surface.blit(label, label_rect)
+
+            # Status tag
+            if done:
+                tag = self.label_font.render("✓ Done", True, (180, 255, 180))
+            elif unlocked:
+                tag = self.label_font.render("Play", True, (220, 220, 220))
+            else:
+                tag = self.label_font.render("🔒 Locked", True, (120, 120, 120))
+            tag_rect = tag.get_rect(center=(card_rect.centerx, card_rect.centery + 22))
+            surface.blit(tag, tag_rect)
+
+        surface.set_clip(old_clip)
+
+        # Scroll arrows
+        if self.scroll_offset > 0:
+            pygame.draw.polygon(surface, WHITE, [
+                (self.panel_rect.x + 8, self.panel_rect.centery + 20),
+                (self.panel_rect.x + 22, self.panel_rect.centery + 8),
+                (self.panel_rect.x + 22, self.panel_rect.centery + 32)
+            ])
+        if self.scroll_offset < self._max_scroll():
+            rx = self.panel_rect.right
+            pygame.draw.polygon(surface, WHITE, [
+                (rx - 8, self.panel_rect.centery + 20),
+                (rx - 22, self.panel_rect.centery + 8),
+                (rx - 22, self.panel_rect.centery + 32)
+            ])
+
+    def handle_event(self, event):
+        if not self.visible:
+            return None
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LEFT:
+                self.scroll_offset = max(0, self.scroll_offset - self.scroll_speed * 3)
+            if event.key == pygame.K_RIGHT:
+                self.scroll_offset = min(self._max_scroll(), self.scroll_offset + self.scroll_speed * 3)
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == 4:  # scroll wheel up
+                self.scroll_offset = max(0, self.scroll_offset - self.scroll_speed)
+            if event.button == 5:  # scroll wheel down
+                self.scroll_offset = min(self._max_scroll(), self.scroll_offset + self.scroll_speed)
+            if event.button == 1 and self.hovered_card:
+                menu_button_accept.play()
+                return self.hovered_card  # return level name to launch
+
+        return None
 
 # ----------------------------------------
 # Lander Class
@@ -634,18 +769,23 @@ def start_level(level_name):
     game_state = PLAYING
 
 def return_to_menu():
-    global game_state, tutorial_guide
+    global game_state, tutorial_guide, level_scroller
+
     thrust_sound.stop()
     tutorial_guide = None
+
+    level_scroller = LevelScroller()  # reset properly at global level
     game_state = MENU
 
 def go_to_next_level():
-    global current_level_index, current_level
+    global current_level_index, current_level, completed_levels
 
-    # NEVER progress out of tutorial
     if current_level == "TUTORIAL":
         return_to_menu()
         return
+
+    # Mark current level as completed
+    completed_levels.add(current_level)
 
     if current_level_index < len(LEVEL_ORDER) - 1:
         current_level_index += 1
@@ -659,6 +799,7 @@ current_level = "LEVEL_1"
 ground = Ground(current_level) # Mars ground
 hud = HUD() # Information display
 menu = Menu() # Start menu
+level_scroller = LevelScroller()
 tutorial_guide = None
 
 # ----------------------------------------
@@ -707,14 +848,25 @@ while running: # Main game loop
 
         if game_state == MENU:
             result = menu.handle_event(event)
+            scroller_result = level_scroller.handle_event(event)
+
+            if scroller_result:
+                current_level_index = LEVEL_ORDER.index(scroller_result)
+                start_level(scroller_result)
 
             if result == "BEGIN":
-                current_level_index = 0  # Reset progression back to first level
-                start_level(LEVEL_ORDER[0])  # Start from LEVEL_1
+                current_level_index = 0
+                level_scroller.visible = False
+                start_level(LEVEL_ORDER[0])
+
+            if result == "LEVELS":
+                level_scroller.toggle()
+                menu_button_accept.play()
 
             if result == "TUTORIAL":
-                current_level_index = 0  # reset safely
+                current_level_index = 0
                 current_level = "TUTORIAL"
+                level_scroller.visible = False
                 start_level("TUTORIAL")
 
             if result == "EXIT":
@@ -751,6 +903,8 @@ while running: # Main game loop
     # ----------
     if game_state == MENU:
         menu.draw() # Draw the menu
+        level_scroller.draw(screen) # Draw the level scroller if it's visible
+        
     else:
         scene_surface = pygame.Surface((WIDTH, HEIGHT))
         scene_surface.blit(background_image, (0, 0)) # Draw background image
