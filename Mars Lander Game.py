@@ -57,38 +57,70 @@ MAX_ZOOM = 1.8
 # ----------------------------------------
 # Level Settings
 # ----------------------------------------
-LEVELS = { # Define the settings for each level, including background and ground images, and landing pad position for the tutorial
+LEVELS = {
     "TUTORIAL": {
         "background": "Tutorial_Background.png",
         "ground": "Tutorial_Ground.png",
+        "terrain_points": [
+            (0, 700), (1200, 700)
+        ],
+        "landing_pad_x": WIDTH//2 - 60,
         "landing_pad": {"x": WIDTH//2 - 60, "y": HEIGHT - 55, "width": 120, "height": 8}
-
     },
     "LEVEL_1": {
         "background": "Level_1_Background.png",
         "ground": "Level_1_Ground.png",
-        "landing_pad": {"x": WIDTH//2 - 60, "y": HEIGHT - 55, "width": 120, "height": 8}
-
+        "terrain_points": [
+            (0, 700), (300, 700), (400, 670), (500, 700),
+            (540, 700), (660, 700),  # flat landing pad zone
+            (700, 700), (1200, 700)
+        ],
+        "landing_pad_x": 540,
+        "landing_pad": {"x": 540, "y": HEIGHT - 55, "width": 120, "height": 8}
     },
     "LEVEL_2": {
         "background": "Level_1_Background.png",
         "ground": "Level_1_Ground.png",
-        "landing_pad": {"x": WIDTH//2 - 60, "y": HEIGHT - 55, "width": 120, "height": 8}
+        "terrain_points": [
+            (0, 700), (150, 660), (300, 700), (420, 640),
+            (500, 700), (560, 700),  # flat landing pad zone
+            (620, 700), (800, 650), (1000, 690), (1200, 700)
+        ],
+        "landing_pad_x": 500,
+        "landing_pad": {"x": 500, "y": HEIGHT - 55, "width": 120, "height": 8}
     },
     "LEVEL_3": {
-       "background": "Level_1_Background.png",
+        "background": "Level_1_Background.png",
         "ground": "Level_1_Ground.png",
-        "landing_pad": {"x": WIDTH//2 - 60, "y": HEIGHT - 55, "width": 120, "height": 8}
+        "terrain_points": [
+            (0, 700), (100, 620), (250, 680), (350, 600),
+            (460, 700), (540, 700),  # flat landing pad zone
+            (600, 700), (750, 610), (900, 670), (1100, 630), (1200, 700)
+        ],
+        "landing_pad_x": 460,
+        "landing_pad": {"x": 460, "y": HEIGHT - 55, "width": 120, "height": 8}
     },
     "LEVEL_4": {
         "background": "Level_1_Background.png",
         "ground": "Level_1_Ground.png",
-        "landing_pad": {"x": WIDTH//2 - 60, "y": HEIGHT - 55, "width": 120, "height": 8}
+        "terrain_points": [
+            (0, 700), (80, 580), (200, 660), (320, 570),
+            (420, 700), (500, 700),  # flat landing pad zone (narrower)
+            (560, 700), (680, 580), (800, 650), (950, 560), (1200, 700)
+        ],
+        "landing_pad_x": 420,
+        "landing_pad": {"x": 420, "y": HEIGHT - 55, "width": 80, "height": 8}
     },
     "LEVEL_5": {
-       "background": "Level_1_Background.png",
+        "background": "Level_1_Background.png",
         "ground": "Level_1_Ground.png",
-        "landing_pad": {"x": WIDTH//2 - 60, "y": HEIGHT - 55, "width": 120, "height": 8}
+        "terrain_points": [
+            (0, 700), (60, 550), (150, 630), (250, 530),
+            (370, 700), (430, 700),  # flat landing pad zone (narrowest)
+            (490, 700), (600, 540), (720, 620), (850, 510), (1000, 640), (1200, 700)
+        ],
+        "landing_pad_x": 370,
+        "landing_pad": {"x": 370, "y": HEIGHT - 55, "width": 60, "height": 8}
     }
 }
 
@@ -97,6 +129,16 @@ LEVELS = { # Define the settings for each level, including background and ground
 # ----------------------------------------
 LEVEL_ORDER = ["LEVEL_1", "LEVEL_2", "LEVEL_3", "LEVEL_4", "LEVEL_5"]  # Defines the order levels are played in
 current_level_index = 0  # Tracks which level the player is currently on
+
+def get_terrain_y(terrain_points, x):
+    """Interpolate terrain height at a given x position."""
+    for i in range(len(terrain_points) - 1):
+        x1, y1 = terrain_points[i]
+        x2, y2 = terrain_points[i + 1]
+        if x1 <= x <= x2:
+            t = (x - x1) / (x2 - x1)
+            return y1 + t * (y2 - y1)
+    return HEIGHT - 50  # fallback if x is out of bounds
 
 # ----------------------------------------
 # Colours
@@ -274,7 +316,7 @@ class Lander:
     # --------------------
     # Tracking lander position
     # --------------------
-    def update(self, gravity_scale=1.0, freeze_descent=False, landing_pad_rect=None):
+    def update(self, gravity_scale=1.0, freeze_descent=False, landing_pad_rect=None, terrain_points=None):
         
         if freeze_descent:
             if self.thrust_sound_playing:
@@ -342,7 +384,8 @@ class Lander:
         # --------------------
         # Landing and crash detection
         # --------------------
-        ground_top = HEIGHT - 50
+        collision_rect = self.get_collision_rect()
+        ground_top = get_terrain_y(terrain_points, collision_rect.centerx) if terrain_points else HEIGHT - 50
         collision_rect = self.get_collision_rect()
         over_landing_pad = False
         landing_surface_top = ground_top
@@ -384,15 +427,15 @@ class Ground:
         level_data = LEVELS.get(level_name, LEVELS["LEVEL_1"])
         ground_file = level_data["ground"]
         pad_data = level_data.get("landing_pad", LEVELS["LEVEL_1"]["landing_pad"])
+        self.terrain_points = level_data.get("terrain_points", [(0, 700), (1200, 700)])
 
         if not os.path.exists(ground_file):
-            ground_file = LEVELS["LEVEL_1"]["ground"] # Fallback ground for missing level files
-        # Load the ground image
+            ground_file = LEVELS["LEVEL_1"]["ground"]
+
         self.image = pygame.image.load(ground_file).convert_alpha()
-        # Scale it to fit the width of the screen and the height you want
         self.image = pygame.transform.scale(self.image, (WIDTH, 50))
-        # Position the ground at the bottom of the screen
-        self.rect = self.image.get_rect(topleft=(0, HEIGHT-50))
+        self.rect = self.image.get_rect(topleft=(0, HEIGHT - 50))
+
         self.landing_pad_rect = pygame.Rect(
             pad_data["x"],
             pad_data["y"],
@@ -400,9 +443,16 @@ class Ground:
             pad_data["height"]
         )
 
-    def draw(self, surface): # Draw the ground and landing pad
-        surface.blit(self.image, self.rect)
-        pygame.draw.rect(surface, WHITE, self.landing_pad_rect) # Draw the landing pad as a white rectangle on top of the ground      
+    def draw(self, surface):
+        # Build a filled polygon from terrain points down to the bottom of screen
+        poly_points = list(self.terrain_points)
+        poly_points.append((self.terrain_points[-1][0], HEIGHT))
+        poly_points.append((self.terrain_points[0][0], HEIGHT))
+
+        pygame.draw.polygon(surface, GROUND, poly_points)
+        pygame.draw.lines(surface, (180, 60, 10), False, self.terrain_points, 3)
+
+        pygame.draw.rect(surface, WHITE, self.landing_pad_rect)
 
 # ----------------------------------------
 # HUD Class
@@ -651,8 +701,9 @@ while running: # Main game loop
         lander.update(
             gravity_scale=tutorial_settings["gravity_scale"],
             freeze_descent=tutorial_settings["freeze_descent"],
-            landing_pad_rect=ground.landing_pad_rect
-        ) # Update lander position and state
+            landing_pad_rect=ground.landing_pad_rect,
+            terrain_points=ground.terrain_points
+        )
 
         if lander.landed or not lander.alive: # Check for landing/crash
             game_state = ENDED # Switch to ended state
