@@ -349,7 +349,7 @@ class Lander:
                 self.thrust_sound_playing = False
 
         if keys[pygame.K_LEFT]: # Check for left arrow key press
-            self.angle += 2.5 # Slower turning for precision
+            self.angle += 1.5 # Slower turning for precision
             self.image = self.boosterL_image
 
         if keys[pygame.K_RIGHT]:
@@ -424,6 +424,7 @@ class Lander:
 # ----------------------------------------
 class Ground:
     def __init__(self, level_name="LEVEL_1"):
+        self.level_name = level_name
         level_data = LEVELS.get(level_name, LEVELS["LEVEL_1"])
         ground_file = level_data["ground"]
         pad_data = level_data.get("landing_pad", LEVELS["LEVEL_1"]["landing_pad"])
@@ -449,8 +450,15 @@ class Ground:
         poly_points.append((self.terrain_points[-1][0], HEIGHT))
         poly_points.append((self.terrain_points[0][0], HEIGHT))
 
-        pygame.draw.polygon(surface, GROUND, poly_points)
-        pygame.draw.lines(surface, (180, 60, 10), False, self.terrain_points, 3)
+        if self.level_name == "TUTORIAL":
+            ground_colour = (235, 235, 235)  # slightly darker than pure white for visibility
+            edge_colour = (200, 200, 200)    # darker outline so landing pad stands out
+        else:
+            ground_colour = GROUND
+            edge_colour = (180, 60, 10)
+
+        pygame.draw.polygon(surface, ground_colour, poly_points)
+        pygame.draw.lines(surface, edge_colour, False, self.terrain_points, 3)
 
         pygame.draw.rect(surface, WHITE, self.landing_pad_rect)
 
@@ -458,17 +466,27 @@ class Ground:
 # HUD Class
 # ----------------------------------------
 class HUD:
-     def draw(self, lander, surface):
-        altitude = HEIGHT - 100 - lander.y # distance above ground
-        
-        texts = [ # information to show
+    def draw(self, lander, surface):
+        altitude = HEIGHT - 100 - lander.y
+
+        texts = [
             f"Altitude: {int(altitude)}",
             f"Vertical Speed: {lander.speed_y:.1f}",
         ]
-        
-        for i, text in enumerate(texts): # display each line
+
+        for i, text in enumerate(texts):
             msg = font.render(text, True, WHITE)
-            surface.blit(msg, (20, 20 + i*50))
+            surface.blit(msg, (20, 20 + i * 50))
+
+    def draw_level_name(self, level_name, surface):
+        if level_name.startswith("LEVEL_"):
+            display_name = level_name.replace("LEVEL_", "Level ")
+        else:
+            display_name = level_name.capitalize()
+
+        msg = font.render(display_name, True, WHITE)
+        rect = msg.get_rect(center=(WIDTH // 2, 20))
+        surface.blit(msg, rect)
 
 # ----------------------------------------
 # Tutorial Guide Class
@@ -598,19 +616,22 @@ def draw_zoomed_scene(scene_surface, zoom, focus_x, focus_y):
 # Game Objects
 # ----------------------------------------
 def start_level(level_name):
-    global lander, ground, background_image, game_state, current_level, tutorial_guide, current_level_index
-    
-    current_level = level_name  # Store current level name
+    global lander, ground, background_image, game_state
+    global current_level, tutorial_guide, current_level_index
 
-    # Update level index so the game knows which level we are on
+    current_level = level_name
+
+    # Only set index for real levels (NOT tutorial)
     if level_name in LEVEL_ORDER:
         current_level_index = LEVEL_ORDER.index(level_name)
 
-    lander = Lander()  # Reset player
-    ground = Ground(level_name)  # Load level ground
-    background_image = load_level_background(level_name)  # Load background
-    tutorial_guide = TutorialGuide() if level_name == "TUTORIAL" else None  # Only enable tutorial if needed
-    game_state = PLAYING  # Start the level
+    lander = Lander()
+    ground = Ground(level_name)
+    background_image = load_level_background(level_name)
+
+    tutorial_guide = TutorialGuide() if level_name == "TUTORIAL" else None
+
+    game_state = PLAYING
 
 def return_to_menu():
     global game_state, tutorial_guide
@@ -619,15 +640,18 @@ def return_to_menu():
     game_state = MENU
 
 def go_to_next_level():
-    global current_level_index
+    global current_level_index, current_level
 
-    # Check if there is another level after this one
+    # NEVER progress out of tutorial
+    if current_level == "TUTORIAL":
+        return_to_menu()
+        return
+
     if current_level_index < len(LEVEL_ORDER) - 1:
-        current_level_index += 1  # Move to next level
+        current_level_index += 1
         next_level = LEVEL_ORDER[current_level_index]
-        start_level(next_level)  # Start next level
+        start_level(next_level)
     else:
-        # If no more levels, go back to menu (you could add a win screen later)
         return_to_menu()
 
 lander = None # Lander
@@ -673,9 +697,13 @@ while running: # Main game loop
             elif event.key == pygame.K_p and game_state == PAUSED:
                 game_state = PLAYING # Unpause game if P is pressed again
 
-            if game_state == ENDED: # If level is finished and player landed safely, press SPACE to continue
-                if event.key == pygame.K_SPACE and lander.landed:
-                    go_to_next_level()
+            if game_state == ENDED:
+                if event.key == pygame.K_SPACE:
+                    if current_level == "TUTORIAL":
+                        return_to_menu()
+                    else:
+                        if lander.landed:
+                            go_to_next_level()
 
         if game_state == MENU:
             result = menu.handle_event(event)
@@ -685,6 +713,8 @@ while running: # Main game loop
                 start_level(LEVEL_ORDER[0])  # Start from LEVEL_1
 
             if result == "TUTORIAL":
+                current_level_index = 0  # reset safely
+                current_level = "TUTORIAL"
                 start_level("TUTORIAL")
 
             if result == "EXIT":
@@ -705,8 +735,16 @@ while running: # Main game loop
             terrain_points=ground.terrain_points
         )
 
-        if lander.landed or not lander.alive: # Check for landing/crash
-            game_state = ENDED # Switch to ended state
+        if lander.landed or not lander.alive:
+            game_state = ENDED
+
+            # prevent tutorial from accidentally entering level progression logic
+            if current_level == "TUTORIAL":
+                current_level_index = 0
+
+            # prevent tutorial from triggering level progression
+            if current_level == "TUTORIAL":
+                current_level_index = 0
 
     # ----------
     # Drawing Everything
@@ -725,8 +763,13 @@ while running: # Main game loop
         draw_zoomed_scene(scene_surface, camera_zoom, camera_focus_x, camera_focus_y)
 
         hud_hidden_for_zoom = camera_zoom > MIN_ZOOM # Hide HUD when zoomed in to prevent clutter and maintain focus on landing
+        if not hud_hidden_for_zoom:
+            if current_level != "TUTORIAL":
+                hud.draw_level_name(current_level, screen)
+
         if current_level != "TUTORIAL" and not hud_hidden_for_zoom:
-            hud.draw(lander, screen) # Draw HUD only when unzoomed
+            hud.draw(lander, screen)
+
         if tutorial_guide is not None and current_level == "TUTORIAL" and not hud_hidden_for_zoom:
             tutorial_guide.draw(lander, screen)
 
