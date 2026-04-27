@@ -1,5 +1,5 @@
 # ----------------------------------------
-# Imported Libraries
+# imported libraries
 # ----------------------------------------
 import pygame
 import sys 
@@ -9,12 +9,13 @@ import shutil
 import datetime
 
 # ----------------------------------------
-# Backup Procedures
+# backup procedures
 # ----------------------------------------
 SOURCE_FOLDER = os.path.dirname(os.path.abspath(__file__)) # Backup the current project folder by default
 BACKUP_FOLDER = os.path.join(os.path.dirname(SOURCE_FOLDER), "Mars_Lander_Backups") # Keep backups outside source folder
 
 def create_backup():
+    # skip the backup entirely if the source folder doesn't exist for some reason
     if not os.path.isdir(SOURCE_FOLDER):
         print(f"Backup skipped: source folder not found: {SOURCE_FOLDER}")
         return
@@ -27,12 +28,13 @@ def create_backup():
         shutil.copytree(SOURCE_FOLDER, backup_path, dirs_exist_ok=True) # Copy all files from source to backup
         print(f"Backup completed successfully! Files saved in: {backup_path}")
     except OSError as err:
+        # sometimes the filesystem throws a fit, just warn and move on
         print(f"Backup skipped due to filesystem error: {err}")
 
 create_backup()
 
 # ----------------------------------------
-# Game States
+# game states
 # ----------------------------------------
 MENU = 'MENU'
 PLAYING = 'PLAYING'
@@ -40,7 +42,7 @@ ENDED = 'ENDED'
 PAUSED = 'PAUSED'
 
 # ----------------------------------------
-# Constants
+# constants
 # ----------------------------------------
 WIDTH = 1200 # screen width in pixels
 HEIGHT = 750 # screen height in pixels
@@ -55,12 +57,13 @@ MIN_ZOOM = 1.0
 MAX_ZOOM = 1.8
 
 # ----------------------------------------
-# Level Settings
+# level settings
 # ----------------------------------------
+# each level has its own background, ground image, terrain shape, and landing pad position
 LEVELS = {
     "TUTORIAL": {
         "background": "Tutorial_Background.png",
-        "ground": "Tutorial_Ground.png",
+        # flat terrain so the player can focus on learning the controls
         "terrain_points": [
             (0, 700), (1200, 700)
         ],
@@ -69,7 +72,6 @@ LEVELS = {
     },
     "LEVEL_1": {
         "background": "Level_1_Background.png",
-        "ground": "Level_1_Ground.png",
         "terrain_points": [
             (0, 700), (300, 700), (400, 670), (500, 700),
             (540, 700), (660, 700),  # flat landing pad zone
@@ -80,7 +82,6 @@ LEVELS = {
     },
     "LEVEL_2": {
         "background": "Level_1_Background.png",
-        "ground": "Level_1_Ground.png",
         "terrain_points": [
             (0, 700), (150, 660), (300, 700), (420, 640),
             (500, 700), (560, 700),  # flat landing pad zone
@@ -91,7 +92,6 @@ LEVELS = {
     },
     "LEVEL_3": {
         "background": "Level_1_Background.png",
-        "ground": "Level_1_Ground.png",
         "terrain_points": [
             (0, 700), (100, 620), (250, 680), (350, 600),
             (460, 700), (540, 700),  # flat landing pad zone
@@ -102,30 +102,30 @@ LEVELS = {
     },
     "LEVEL_4": {
         "background": "Level_1_Background.png",
-        "ground": "Level_1_Ground.png",
         "terrain_points": [
             (0, 700), (80, 580), (200, 660), (320, 570),
             (420, 700), (500, 700),  # flat landing pad zone (narrower)
             (560, 700), (680, 580), (800, 650), (950, 560), (1200, 700)
         ],
         "landing_pad_x": 420,
+        # landing pad is narrower here to make things trickier
         "landing_pad": {"x": 420, "y": HEIGHT - 55, "width": 80, "height": 8}
     },
     "LEVEL_5": {
         "background": "Level_1_Background.png",
-        "ground": "Level_1_Ground.png",
         "terrain_points": [
             (0, 700), (60, 550), (150, 630), (250, 530),
             (370, 700), (430, 700),  # flat landing pad zone (narrowest)
             (490, 700), (600, 540), (720, 620), (850, 510), (1000, 640), (1200, 700)
         ],
         "landing_pad_x": 370,
+        # smallest pad in the game, requires precise control
         "landing_pad": {"x": 370, "y": HEIGHT - 55, "width": 60, "height": 8}
     }
 }
 
 # ----------------------------------------
-# Level Progression System
+# level progression system
 # ----------------------------------------
 LEVEL_ORDER = ["LEVEL_1", "LEVEL_2", "LEVEL_3", "LEVEL_4", "LEVEL_5"]  # Defines the order levels are played in
 current_level_index = 0  # Tracks which level the player is currently on
@@ -137,12 +137,13 @@ def get_terrain_y(terrain_points, x):
         x1, y1 = terrain_points[i]
         x2, y2 = terrain_points[i + 1]
         if x1 <= x <= x2:
+            # lerp between the two surrounding terrain points
             t = (x - x1) / (x2 - x1)
             return y1 + t * (y2 - y1)
     return HEIGHT - 50  # fallback if x is out of bounds
 
 # ----------------------------------------
-# Colours
+# colours
 # ----------------------------------------
 SKY = (255, 150, 100)
 GROUND = (200, 80, 30)
@@ -155,7 +156,7 @@ RED = (255, 0, 0)
 YELLOW = (255, 255, 0)
 
 # ----------------------------------------
-# Pygame Setup
+# pygame Setup
 # ----------------------------------------
 pygame.init() # start pygame
 pygame.mixer.init() # initialize pygame mixer
@@ -164,9 +165,10 @@ pygame.display.set_caption("Mars Lander") # window title
 clock = pygame.time.Clock() # control frame rate
 font = pygame.font.Font(None, 50) # font for on-screen text
 
-# Load background image
+# load background image
 menu_background = pygame.image.load("Menu_Background.png").convert() # Load menu background image
 menu_background = pygame.transform.scale(menu_background, (WIDTH, HEIGHT)) # Scale menu background to fit screen
+
 def load_level_background(level_name): # Load the background image for the specified level
     level_data = LEVELS.get(level_name, LEVELS["LEVEL_1"])
     background_file = level_data["background"]
@@ -176,7 +178,7 @@ def load_level_background(level_name): # Load the background image for the speci
 
 background_image = load_level_background("LEVEL_1")
 
-# Load Sound Effects
+# load sound effects
 thrust_sound = pygame.mixer.Sound("lander_thrust.mp3") # Load thrust sound effect
 thrust_sound.set_volume(0.5)
 explosion_sound = pygame.mixer.Sound("lander_explode.wav")
@@ -185,7 +187,7 @@ menu_button_accept = pygame.mixer.Sound("menu_button_accept.wav")
 menu_button_accept.set_volume(0.06)
 
 # ----------------------------------------
-# Button Class
+# button class
 # ----------------------------------------
 class Button:
     def __init__(self, x, y, width, height, text, action): # Initialize button with position, size, text, and action
@@ -225,7 +227,7 @@ class Button:
                 return self.action # Return the action associated with the button when clicked
 
 # ----------------------------------------
-# Menu Class
+# menu class
 # ----------------------------------------
 class Menu:
     def __init__(self):
@@ -235,7 +237,7 @@ class Menu:
         self.margin_x = 50  # distance from left edge
         self.margin_y = 50  # distance from bottom edge
 
-        # Compute starting Y so buttons stack upwards from bottom-left
+        # compute starting y so buttons stack upwards from the bottom-left corner
         start_y = HEIGHT - self.margin_y - (self.button_height * 4 + self.spacing * 3)
 
         # Button rectangles
@@ -261,6 +263,7 @@ class Menu:
         screen.blit(label, label_rect)
 
     def draw(self):
+        # don't draw the menu while the level scroller is open
         if level_scroller.visible:
             return
 
@@ -277,7 +280,7 @@ class Menu:
                 return action
 
 # ----------------------------------------
-# Level Scroller Class
+# level scroller class
 # ----------------------------------------
 class LevelScroller:
     def __init__(self):
@@ -292,7 +295,7 @@ class LevelScroller:
         self.scroll_speed = 18
         self.hovered_card = None
 
-        # CENTRED PANEL (NEW)
+        # centred panel that sits in the middle of the screen
         panel_width = WIDTH - 200
         panel_height = 260
 
@@ -303,7 +306,7 @@ class LevelScroller:
             panel_height
         )
 
-        # RETURN BUTTON (NEW)
+        # return button sits just below the panel
         self.button_width = 220
         self.button_height = 60
 
@@ -320,6 +323,7 @@ class LevelScroller:
         self.visible = not self.visible
 
     def _total_content_width(self):
+        # total pixel width of all level cards laid out side by side
         return len(LEVEL_ORDER) * (self.card_width + self.card_spacing) - self.card_spacing
 
     def _max_scroll(self):
@@ -330,6 +334,7 @@ class LevelScroller:
         idx = LEVEL_ORDER.index(level_name)
         if idx == 0:
             return True  # first level always unlocked
+        # a level is only unlocked if the previous one has been completed
         return LEVEL_ORDER[idx - 1] in completed_levels
 
     def draw(self, surface):
@@ -343,7 +348,7 @@ class LevelScroller:
         title = self.title_font.render("Select Level", True, WHITE)
         surface.blit(title, (self.panel_rect.x + 20, self.panel_rect.y + 14))
 
-        # Clip cards to panel area
+        # clip card drawing to stay inside the panel so nothing bleeds out the sides
         clip_rect = pygame.Rect(
             self.panel_rect.x + 10,
             self.panel_rect.y + 55,
@@ -368,7 +373,7 @@ class LevelScroller:
             if hovered:
                 self.hovered_card = level_name
 
-            # Card colour
+            # pick card fill colour based on completion and hover state
             if done:
                 fill = (0, 120, 40) if not hovered else (0, 160, 55)
             elif unlocked:
@@ -386,7 +391,7 @@ class LevelScroller:
             label_rect = label.get_rect(center=(card_rect.centerx, card_rect.centery - 10))
             surface.blit(label, label_rect)
 
-            # Status tag
+            # status text under the level name
             if done:
                 tag = self.label_font.render("Done", True, (180, 255, 180))
             elif unlocked:
@@ -399,13 +404,14 @@ class LevelScroller:
         surface.set_clip(old_clip)
         self.return_button.draw(surface)
 
-        # Scroll arrows
+        # draw left scroll arrow if there's more content to the left
         if self.scroll_offset > 0:
             pygame.draw.polygon(surface, WHITE, [
                 (self.panel_rect.x + 8, self.panel_rect.centery + 20),
                 (self.panel_rect.x + 22, self.panel_rect.centery + 8),
                 (self.panel_rect.x + 22, self.panel_rect.centery + 32)
             ])
+        # draw right scroll arrow if there's more content to the right
         if self.scroll_offset < self._max_scroll():
             rx = self.panel_rect.right
             pygame.draw.polygon(surface, WHITE, [
@@ -418,6 +424,7 @@ class LevelScroller:
         if not self.visible:
             return None
 
+        # keyboard scrolling with arrow keys
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_LEFT:
                 self.scroll_offset = max(0, self.scroll_offset - self.scroll_speed * 3)
@@ -425,18 +432,19 @@ class LevelScroller:
                 self.scroll_offset = min(self._max_scroll(), self.scroll_offset + self.scroll_speed * 3)
 
         if event.type == pygame.MOUSEBUTTONDOWN:
+            # scroll with mouse wheel
             if event.button == 4:
                 self.scroll_offset = max(0, self.scroll_offset - self.scroll_speed)
             if event.button == 5:
                 self.scroll_offset = min(self._max_scroll(), self.scroll_offset + self.scroll_speed)
 
-            # IMPORTANT: return button check (FIX)
+            # check return button before anything else so it doesn't get swallowed
             action = self.return_button.handle_event(event)
             if action:
                 menu_button_accept.play()
                 return action
 
-            # level selection click
+            # clicking a level card starts that level
             if event.button == 1 and self.hovered_card:
                 menu_button_accept.play()
                 return self.hovered_card
@@ -444,12 +452,12 @@ class LevelScroller:
         return None
 
 # ----------------------------------------
-# Lander Class
+# lander class
 # ----------------------------------------
 class Lander:
     def __init__(self):
         # --------------------
-        # Adding variables
+        # adding variables
         # --------------------
         self.x = WIDTH // 2 # Start in middle of screen
         self.y = 120 # Start near the top
@@ -460,10 +468,10 @@ class Lander:
         self.thrust_sound_playing = False # Track if thrust sound is currently playing
         self.alive = True
         self.landed = False
-        self.fuel = START_FUEL#current fuel
+        self.fuel = START_FUEL # current fuel
 
         # --------------------
-        # Loading and setting up images
+        # loading and setting up images
         # --------------------
         self.base_image = self.scale_lander_image(pygame.image.load("Lander.png").convert_alpha()) # Loads lander image
         self.booster_image = self.scale_lander_image(pygame.image.load("Lander_Booster.png").convert_alpha()) # Loads booster image
@@ -481,14 +489,16 @@ class Lander:
     
     def get_collision_rect(self): # Get a smaller collision rectangle for more forgiving landing and crash detection
         collision_rect = self.rect.inflate(-self.rect.width * 0.45, -self.rect.height * 0.35)
-        collision_rect.y += int(self.rect.height * 0.12) # bias collision zone toward landing legs
+        # shift it down slightly so it lines up better with where the legs actually are
+        collision_rect.y += int(self.rect.height * 0.12)
         return collision_rect
 
     # --------------------
-    # Tracking lander position
+    # tracking lander position
     # --------------------
     def update(self, gravity_scale=1.0, freeze_descent=False, landing_pad_rect=None, terrain_points=None):
         
+        # stop the thrust sound if descent is frozen (e.g. during tutorial pause)
         if freeze_descent:
             if self.thrust_sound_playing:
                 thrust_sound.stop()
@@ -502,7 +512,7 @@ class Lander:
             self.speed_y += GRAVITY * gravity_scale # Gravity propels lander down
 
         # ----------
-        # Controls
+        # controls
         # ----------
         if keys[pygame.K_SPACE] and self.fuel > 0 and not freeze_descent: # Check for space key press and fuel availability
             rad = math.radians(self.angle)
@@ -511,6 +521,7 @@ class Lander:
             self.fuel -= 1 # Removes 1 fuel
             self.thrusting = True 
 
+            # only call play() once so the looping sound doesn't restart every frame
             if not self.thrust_sound_playing:
                  thrust_sound.play(-1)   # loop while held
                  self.thrust_sound_playing = True
@@ -530,8 +541,9 @@ class Lander:
         self.angle = max(-90, min(90, self.angle)) # limits the turning angle
 
         # ----------
-        # Setting Lander Image
+        # setting Lander Image
         # ----------
+        # pick the right sprite frame depending on what the player is doing
         if keys[pygame.K_LEFT]:
             image_to_rotate = self.boosterL_image
         elif keys[pygame.K_RIGHT]:
@@ -553,7 +565,7 @@ class Lander:
         self.x += self.speed_x
 
         # --------------------
-        # Landing and crash detection
+        # landing and crash detection
         # --------------------
         collision_rect = self.get_collision_rect()
         ground_top = get_terrain_y(terrain_points, collision_rect.centerx) if terrain_points else HEIGHT - 50
@@ -564,10 +576,12 @@ class Lander:
             over_landing_pad = (
                 landing_pad_rect.left <= collision_rect.centerx <= landing_pad_rect.right
             )
+            # use the landing pad top as the surface if the lander is directly above it
             if over_landing_pad:
                 landing_surface_top = min(ground_top, landing_pad_rect.top)
 
         if collision_rect.bottom >= landing_surface_top:
+            # push the lander back up so it sits flush with the surface
             penetration = collision_rect.bottom - landing_surface_top
             self.y -= penetration
             self.rect = self.image.get_rect(center=(self.x, self.y))
@@ -580,7 +594,7 @@ class Lander:
             if on_landing_pad and abs(self.speed_y) <= SAFE_SPEED and abs(self.angle) <= 12: # Check for safe landing conditions
                 self.landed = True
 
-            else: # If not landed safely, it's a crash
+            else: # too fast or too tilted — it's a crash
                 self.alive = False
                 crash_rotated = pygame.transform.rotate(self.crash_image, self.angle)
                 self.image = crash_rotated
@@ -588,25 +602,17 @@ class Lander:
                 explosion_sound.play()
 
     def draw(self, surface):
-        surface.blit(self.image, self.rect)#draw the spaceship image at its current position and orientation
+        surface.blit(self.image, self.rect) # draw the spaceship image at its current position and orientation
 
 # ----------------------------------------
-# Ground class
+# ground class
 # ----------------------------------------
 class Ground:
     def __init__(self, level_name="LEVEL_1"):
         self.level_name = level_name
         level_data = LEVELS.get(level_name, LEVELS["LEVEL_1"])
-        ground_file = level_data["ground"]
         pad_data = level_data.get("landing_pad", LEVELS["LEVEL_1"]["landing_pad"])
         self.terrain_points = level_data.get("terrain_points", [(0, 700), (1200, 700)])
-
-        if not os.path.exists(ground_file):
-            ground_file = LEVELS["LEVEL_1"]["ground"]
-
-        self.image = pygame.image.load(ground_file).convert_alpha()
-        self.image = pygame.transform.scale(self.image, (WIDTH, 50))
-        self.rect = self.image.get_rect(topleft=(0, HEIGHT - 50))
 
         self.landing_pad_rect = pygame.Rect(
             pad_data["x"],
@@ -616,11 +622,12 @@ class Ground:
         )
 
     def draw(self, surface):
-        # Build a filled polygon from terrain points down to the bottom of screen
+        # extend terrain points down to the screen bottom to form a closed polygon
         poly_points = list(self.terrain_points)
         poly_points.append((self.terrain_points[-1][0], HEIGHT))
         poly_points.append((self.terrain_points[0][0], HEIGHT))
 
+        # use lighter colours for the tutorial so the pad stands out clearly
         if self.level_name == "TUTORIAL":
             ground_colour = (235, 235, 235)  # slightly darker than pure white for visibility
             edge_colour = (200, 200, 200)    # darker outline so landing pad stands out
@@ -631,13 +638,15 @@ class Ground:
         pygame.draw.polygon(surface, ground_colour, poly_points)
         pygame.draw.lines(surface, edge_colour, False, self.terrain_points, 3)
 
+        # landing pad is drawn in white so it's easy to spot from above
         pygame.draw.rect(surface, WHITE, self.landing_pad_rect)
 
 # ----------------------------------------
-# HUD Class
+# HUD class
 # ----------------------------------------
 class HUD:
     def draw(self, lander, surface):
+        # altitude is measured from the bottom of the playable area
         altitude = HEIGHT - 100 - lander.y
 
         texts = [
@@ -650,6 +659,7 @@ class HUD:
             surface.blit(msg, (20, 20 + i * 50))
 
     def draw_level_name(self, level_name, surface):
+        # clean up the internal level key into something readable for the player
         if level_name.startswith("LEVEL_"):
             display_name = level_name.replace("LEVEL_", "Level ")
         else:
@@ -660,7 +670,7 @@ class HUD:
         surface.blit(msg, rect)
 
 # ----------------------------------------
-# Tutorial Guide Class
+# tutorial guide class
 # ----------------------------------------
 class TutorialGuide: # Provides on-screen instructions and controls the tutorial flow
     def __init__(self):
@@ -691,21 +701,25 @@ class TutorialGuide: # Provides on-screen instructions and controls the tutorial
     def get_step_states(self, lander): # Get the current state of each tutorial step, marking them as done if their conditions are met or if they were previously completed
         steps = self.get_steps(lander)
         states = []
-        for index, step in enumerate(steps): # Mark steps as done if their conditions are met or if they were previously completed
+        for index, step in enumerate(steps):
+            # a step stays done even if the player undoes the action (e.g. straightens back to angle 0)
             done = step["done"] or index in self.completed_steps
             states.append({"title": step["title"], "tip": step["tip"], "done": done})
         return states
 
     def update(self, lander):
+        # nothing to update once the lander has stopped flying
         if not lander.alive or lander.landed:
             return {"freeze_descent": False, "gravity_scale": 0.5}
 
         steps = self.get_step_states(lander)
 
+        # lock in any steps that are now complete
         for index, step in enumerate(steps):
             if step["done"]:
                 self.completed_steps.add(index)
 
+        # find the first step that isn't done yet
         next_step_index = len(steps)
         for index, step in enumerate(steps):
             if not step["done"]:
@@ -714,6 +728,7 @@ class TutorialGuide: # Provides on-screen instructions and controls the tutorial
 
         self.current_step_index = next_step_index
 
+        # briefly freeze the lander when transitioning to the turning step
         turn_step_active = self.current_step_index == 1 and 0 in self.completed_steps and 1 not in self.completed_steps
         if turn_step_active and not self.turn_intro_shown:
             self.turn_intro_frames_remaining -= 1
@@ -724,7 +739,9 @@ class TutorialGuide: # Provides on-screen instructions and controls the tutorial
             freeze_descent = False
 
         return {"freeze_descent": freeze_descent, "gravity_scale": 0.5}
+
     def draw(self, lander, surface):
+        # don't draw once the round is over
         if not lander.alive or lander.landed:
             return
 
@@ -734,11 +751,13 @@ class TutorialGuide: # Provides on-screen instructions and controls the tutorial
         if self.current_step_index is not None and self.current_step_index < len(steps):
             active_step = steps[self.current_step_index]
         else:
+            # fall through to find any remaining incomplete step
             for step in steps:
                 if not step["done"]:
                     active_step = step
                     break
 
+        # all steps done — show a completion message and prompt the player to land
         if active_step is None:
             active_step = {
                 "title": "Tutorial Complete",
@@ -757,16 +776,18 @@ class TutorialGuide: # Provides on-screen instructions and controls the tutorial
 
 
 # ----------------------------------------
-# Camera Zoom Functions
+# camera zoom functions
 # ----------------------------------------
 def get_zoom(lander, landing_pad_rect):
     pad_center_x = landing_pad_rect.centerx
     pad_center_y = landing_pad_rect.centery
     distance = math.hypot(lander.x - pad_center_x, lander.y - pad_center_y)
 
-    return MAX_ZOOM if distance <= ZOOM_NEAR_DISTANCE else MIN_ZOOM # Zoom in when close to landing pad, zoom out when far away
+    # snap between two zoom levels — close to the pad gets max zoom, far away gets none
+    return MAX_ZOOM if distance <= ZOOM_NEAR_DISTANCE else MIN_ZOOM
 
 def draw_zoomed_scene(scene_surface, zoom, focus_x, focus_y):
+    # skip all the scaling work if we're at 1:1
     if zoom <= 1.0:
         screen.blit(scene_surface, (0, 0))
         return
@@ -775,16 +796,18 @@ def draw_zoomed_scene(scene_surface, zoom, focus_x, focus_y):
     scaled_height = int(HEIGHT * zoom)
     scaled_scene = pygame.transform.smoothscale(scene_surface, (scaled_width, scaled_height))
 
+    # figure out where the focus point ended up after scaling
     scaled_focus_x = focus_x * zoom
     scaled_focus_y = focus_y * zoom
 
+    # clamp the crop rect so we don't try to blit outside the scaled surface
     left = int(max(0, min(scaled_width - WIDTH, scaled_focus_x - WIDTH / 2)))
     top = int(max(0, min(scaled_height - HEIGHT, scaled_focus_y - HEIGHT / 2)))
 
     screen.blit(scaled_scene, (0, 0), area=pygame.Rect(left, top, WIDTH, HEIGHT))
 
 # ----------------------------------------
-# Game Objects
+# game objects
 # ----------------------------------------
 def start_level(level_name):
     global lander, ground, background_image, game_state
@@ -792,7 +815,7 @@ def start_level(level_name):
 
     current_level = level_name
 
-    # Only set index for real levels (NOT tutorial)
+    # only update the level index for proper levels, not the tutorial
     if level_name in LEVEL_ORDER:
         current_level_index = LEVEL_ORDER.index(level_name)
 
@@ -800,6 +823,7 @@ def start_level(level_name):
     ground = Ground(level_name)
     background_image = load_level_background(level_name)
 
+    # only create a tutorial guide when actually playing the tutorial
     tutorial_guide = TutorialGuide() if level_name == "TUTORIAL" else None
 
     game_state = PLAYING
@@ -807,9 +831,11 @@ def start_level(level_name):
 def return_to_menu():
     global game_state, tutorial_guide, level_scroller
 
+    # make sure the thrust sound doesn't keep playing after leaving the game
     thrust_sound.stop()
     tutorial_guide = None
 
+    # reset the level scroller so it's hidden when the menu appears again
     level_scroller.visible = False
     level_scroller.scroll_offset = 0
     
@@ -818,11 +844,12 @@ def return_to_menu():
 def go_to_next_level():
     global current_level_index, current_level, completed_levels
 
+    # tutorial doesn't count as part of the level progression
     if current_level == "TUTORIAL":
         return_to_menu()
         return
 
-    # Mark current level as completed
+    # mark current level as completed before moving on
     completed_levels.add(current_level)
 
     if current_level_index < len(LEVEL_ORDER) - 1:
@@ -830,6 +857,7 @@ def go_to_next_level():
         next_level = LEVEL_ORDER[current_level_index]
         start_level(next_level)
     else:
+        # all levels done, go back to menu
         return_to_menu()
 
 lander = None # Lander
@@ -841,18 +869,18 @@ level_scroller = LevelScroller()
 tutorial_guide = None
 
 # ----------------------------------------
-# Game State   
+# game state   
 # ----------------------------------------
 game_state = MENU
 
 # ----------------------------------------
-# Main Game Loop
+# main game loop
 # ----------------------------------------
 running = True
 while running: # Main game loop
 
     # --------------------
-    # Event Handling
+    # event handling
     # --------------------
     for event in pygame.event.get(): # Check for events
 
@@ -861,6 +889,7 @@ while running: # Main game loop
 
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_m:
+                # m key is a quick escape back to the menu from anywhere
                 return_to_menu()
                 continue
 
@@ -889,7 +918,7 @@ while running: # Main game loop
             result = None
             scroller_result = None
 
-            # Level scroller gets priority if visible
+            # level scroller gets first dibs on events while it's open
             if level_scroller.visible:
                 scroller_result = level_scroller.handle_event(event)
             else:
@@ -899,10 +928,12 @@ while running: # Main game loop
                 return_to_menu()
 
             elif scroller_result in LEVEL_ORDER:
+                # player clicked a level card, jump straight into it
                 current_level_index = LEVEL_ORDER.index(scroller_result)
                 start_level(scroller_result)
 
             if result == "BEGIN":
+                # begin always starts from level 1
                 current_level_index = 0
                 level_scroller.visible = False
                 start_level(LEVEL_ORDER[0])
@@ -921,7 +952,7 @@ while running: # Main game loop
                 running = False
 
     # ----------
-    # Updating Game
+    # updating game
     # ----------
     if game_state == PLAYING:
         tutorial_settings = {"freeze_descent": False, "gravity_scale": 1.0}
@@ -938,7 +969,7 @@ while running: # Main game loop
         if lander.landed or not lander.alive:
             game_state = ENDED
 
-            # prevent tutorial from accidentally entering level progression logic
+            # make sure the tutorial can never accidentally trigger level progression
             if current_level == "TUTORIAL":
                 current_level_index = 0
 
@@ -947,26 +978,30 @@ while running: # Main game loop
                 current_level_index = 0
 
     # ----------
-    # Drawing Everything
+    # drawing everything
     # ----------
     if game_state == MENU:
+        # draw scroller on top if it's open, otherwise show the normal menu
         if level_scroller.visible:
             level_scroller.draw(screen)
         else:
             menu.draw()
         
     else:
+        # render everything to an offscreen surface first so the zoom can crop it
         scene_surface = pygame.Surface((WIDTH, HEIGHT))
         scene_surface.blit(background_image, (0, 0)) # Draw background image
         ground.draw(scene_surface) # Draw the ground
         lander.draw(scene_surface) # Draw the lander
 
+        # camera focuses between the lander and the pad so both stay visible
         camera_zoom = get_zoom(lander, ground.landing_pad_rect)
         camera_focus_x = (lander.x + ground.landing_pad_rect.centerx) / 2
         camera_focus_y = (lander.y + ground.landing_pad_rect.centery) / 2
         draw_zoomed_scene(scene_surface, camera_zoom, camera_focus_x, camera_focus_y)
 
-        hud_hidden_for_zoom = camera_zoom > MIN_ZOOM # Hide HUD when zoomed in to prevent clutter and maintain focus on landing
+        # hide the hud while zoomed in so it doesn't overlap with the action
+        hud_hidden_for_zoom = camera_zoom > MIN_ZOOM
         if not hud_hidden_for_zoom:
             if current_level != "TUTORIAL":
                 hud.draw_level_name(current_level, screen)
@@ -978,7 +1013,7 @@ while running: # Main game loop
             tutorial_guide.draw(lander, screen)
 
         # ----------
-        # End Game Message
+        # end game message
         # ----------
         if game_state == ENDED: # Show end game message
 
@@ -992,7 +1027,7 @@ while running: # Main game loop
             msg_rect = msg.get_rect(center=(WIDTH//2, HEIGHT//2 - 40)) # Center the message on the screen
             screen.blit(msg, msg_rect) # Draw the message on the screen
 
-            # Show different instructions depending on outcome
+            # show different options depending on whether the player landed or crashed
             if lander.landed:
                 quit_msg = font.render("Press SPACE for next level, R to retry, M for menu, or Q to quit", True, WHITE)
             else:
