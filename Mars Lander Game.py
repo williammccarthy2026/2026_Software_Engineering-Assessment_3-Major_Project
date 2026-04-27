@@ -44,8 +44,8 @@ PAUSED = 'PAUSED'
 # ----------------------------------------
 WIDTH = 1200 # screen width in pixels
 HEIGHT = 750 # screen height in pixels
-GRAVITY = 0.1 # how fast the lander falls
-THRUST = 0.25 # how strong the space key thrust is
+GRAVITY = 0.06 # slower descent for more controlled falling
+THRUST = 0.16 # weaker boosters for finer movement
 START_FUEL = 500 # starting amount of fuel
 SAFE_SPEED = 3 # maximum safe landing speed
 LANDER_SCALE = 0.45 # scale factor for the lander image size
@@ -349,11 +349,11 @@ class Lander:
                 self.thrust_sound_playing = False
 
         if keys[pygame.K_LEFT]: # Check for left arrow key press
-            self.angle += 4 # Rotate the Lander
+            self.angle += 2.5 # Slower turning for precision
             self.image = self.boosterL_image
 
         if keys[pygame.K_RIGHT]:
-            self.angle -= 4
+            self.angle -= 2.5
             self.image = self.boosterR_image
 
         self.angle = max(-90, min(90, self.angle)) # limits the turning angle
