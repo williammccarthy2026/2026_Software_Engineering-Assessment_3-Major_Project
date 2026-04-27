@@ -261,9 +261,11 @@ class Menu:
         screen.blit(label, label_rect)
 
     def draw(self):
+        if level_scroller.visible:
+            return
+
         screen.blit(menu_background, (0,0))
 
-        # Draw buttons only (no title)
         for button in self.buttons:
             button.draw(screen)
 
@@ -283,12 +285,36 @@ class LevelScroller:
         self.card_width = 160
         self.card_height = 100
         self.card_spacing = 20
-        self.scroll_offset = 0  # how many pixels we've scrolled left
-        self.panel_rect = pygame.Rect(50, HEIGHT - 340, WIDTH - 100, 200)
+        self.scroll_offset = 0
+
         self.title_font = pygame.font.Font(None, 38)
         self.label_font = pygame.font.Font(None, 34)
         self.scroll_speed = 18
         self.hovered_card = None
+
+        # CENTRED PANEL (NEW)
+        panel_width = WIDTH - 200
+        panel_height = 260
+
+        self.panel_rect = pygame.Rect(
+            (WIDTH - panel_width) // 2,
+            (HEIGHT - panel_height) // 2,
+            panel_width,
+            panel_height
+        )
+
+        # RETURN BUTTON (NEW)
+        self.button_width = 220
+        self.button_height = 60
+
+        self.return_button = Button(
+            (WIDTH - self.button_width) // 2,
+            self.panel_rect.bottom + 25,
+            self.button_width,
+            self.button_height,
+            "Return to Menu",
+            "MENU_RETURN"
+        )
 
     def toggle(self):
         self.visible = not self.visible
@@ -311,8 +337,8 @@ class LevelScroller:
             return
 
         # Panel background
-        pygame.draw.rect(surface, (20, 20, 20), self.panel_rect, border_radius=14)
-        pygame.draw.rect(surface, GREY, self.panel_rect, 2, border_radius=14)
+        pygame.draw.rect(surface, BLACK, self.panel_rect, border_radius=12)
+        pygame.draw.rect(surface, ORANGE, self.panel_rect, 3, border_radius=12)
 
         title = self.title_font.render("Select Level", True, WHITE)
         surface.blit(title, (self.panel_rect.x + 20, self.panel_rect.y + 14))
@@ -351,7 +377,8 @@ class LevelScroller:
                 fill = (30, 30, 30)  # locked
 
             pygame.draw.rect(surface, fill, card_rect, border_radius=10)
-            pygame.draw.rect(surface, GREY if not hovered else WHITE, card_rect, 2, border_radius=10)
+            border_colour = WHITE if done else (GREY if not hovered else ORANGE)
+            pygame.draw.rect(surface, border_colour, card_rect, 2, border_radius=10)
 
             # Label
             display = level_name.replace("LEVEL_", "Level ")
@@ -361,15 +388,16 @@ class LevelScroller:
 
             # Status tag
             if done:
-                tag = self.label_font.render("✓ Done", True, (180, 255, 180))
+                tag = self.label_font.render("Done", True, (180, 255, 180))
             elif unlocked:
                 tag = self.label_font.render("Play", True, (220, 220, 220))
             else:
-                tag = self.label_font.render("🔒 Locked", True, (120, 120, 120))
+                tag = self.label_font.render("Locked", True, (120, 120, 120))
             tag_rect = tag.get_rect(center=(card_rect.centerx, card_rect.centery + 22))
             surface.blit(tag, tag_rect)
 
         surface.set_clip(old_clip)
+        self.return_button.draw(surface)
 
         # Scroll arrows
         if self.scroll_offset > 0:
@@ -397,13 +425,21 @@ class LevelScroller:
                 self.scroll_offset = min(self._max_scroll(), self.scroll_offset + self.scroll_speed * 3)
 
         if event.type == pygame.MOUSEBUTTONDOWN:
-            if event.button == 4:  # scroll wheel up
+            if event.button == 4:
                 self.scroll_offset = max(0, self.scroll_offset - self.scroll_speed)
-            if event.button == 5:  # scroll wheel down
+            if event.button == 5:
                 self.scroll_offset = min(self._max_scroll(), self.scroll_offset + self.scroll_speed)
+
+            # IMPORTANT: return button check (FIX)
+            action = self.return_button.handle_event(event)
+            if action:
+                menu_button_accept.play()
+                return action
+
+            # level selection click
             if event.button == 1 and self.hovered_card:
                 menu_button_accept.play()
-                return self.hovered_card  # return level name to launch
+                return self.hovered_card
 
         return None
 
@@ -774,7 +810,9 @@ def return_to_menu():
     thrust_sound.stop()
     tutorial_guide = None
 
-    level_scroller = LevelScroller()  # reset properly at global level
+    level_scroller.visible = False
+    level_scroller.scroll_offset = 0
+    
     game_state = MENU
 
 def go_to_next_level():
@@ -847,10 +885,20 @@ while running: # Main game loop
                             go_to_next_level()
 
         if game_state == MENU:
-            result = menu.handle_event(event)
-            scroller_result = level_scroller.handle_event(event)
 
-            if scroller_result:
+            result = None
+            scroller_result = None
+
+            # Level scroller gets priority if visible
+            if level_scroller.visible:
+                scroller_result = level_scroller.handle_event(event)
+            else:
+                result = menu.handle_event(event)
+
+            if scroller_result == "MENU_RETURN":
+                return_to_menu()
+
+            elif scroller_result in LEVEL_ORDER:
                 current_level_index = LEVEL_ORDER.index(scroller_result)
                 start_level(scroller_result)
 
@@ -902,8 +950,10 @@ while running: # Main game loop
     # Drawing Everything
     # ----------
     if game_state == MENU:
-        menu.draw() # Draw the menu
-        level_scroller.draw(screen) # Draw the level scroller if it's visible
+        if level_scroller.visible:
+            level_scroller.draw(screen)
+        else:
+            menu.draw()
         
     else:
         scene_surface = pygame.Surface((WIDTH, HEIGHT))
