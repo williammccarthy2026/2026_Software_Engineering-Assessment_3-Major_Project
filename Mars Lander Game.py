@@ -46,8 +46,8 @@ PAUSED = 'PAUSED'
 # ----------------------------------------
 WIDTH = 1200 # screen width in pixels
 HEIGHT = 750 # screen height in pixels
-GRAVITY = 0.06 # slower descent for more controlled falling
-THRUST = 0.16 # weaker boosters for finer movement
+GRAVITY = 0.04 # gravity
+THRUST = 0.12 # lander thrust power
 START_FUEL = 500 # starting amount of fuel
 SAFE_SPEED = 3 # maximum safe landing speed
 LANDER_SCALE = 0.45 # scale factor for the lander image size
