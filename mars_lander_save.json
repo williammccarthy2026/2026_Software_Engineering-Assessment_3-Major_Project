@@ -1,0 +1,14 @@
+{
+  "completed_levels": [
+    "LEVEL_4",
+    "LEVEL_1",
+    "LEVEL_2",
+    "LEVEL_3"
+  ],
+  "best_scores": {
+    "LEVEL_1": 923,
+    "LEVEL_2": 912,
+    "LEVEL_3": 861,
+    "LEVEL_4": 725
+  }
+}
